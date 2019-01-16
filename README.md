@@ -1,5 +1,7 @@
 # NautPie: DeployNaut API Console Client
 
+[![Build Status](https://travis-ci.org/marczhermo/nautpie.svg?branch=master)](https://travis-ci.org/marczhermo/nautpie)
+
 **Goal**: Provides unified way of communicating with SilverStripe Platform DeployNaut API on the command line.
 
 **Usage**: This is intended to be used for CI/CD or Continuous Integration and Delivery.
