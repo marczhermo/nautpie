@@ -183,7 +183,7 @@ trait CurlFetch
         }
 
         $this->warning('Sending request with: ' . $uri);
-        $this->message($data);
+        // $this->message($data);
 
         $client = $this->handler;
         $response = $client($data);

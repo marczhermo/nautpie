@@ -143,7 +143,7 @@ class DeployNautCommand extends Command
         } while ($isWaiting);
     }
 
-    public function doDeployments()
+    public function doGetDeployments()
     {
         $startDate = $this->getOption('startDate') ?: '-1 month';
         $stack = $this->getOption('stack');

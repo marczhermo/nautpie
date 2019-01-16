@@ -127,7 +127,7 @@ class BitbucketCommand extends Command
         throw new \Exception('[Action:DeployGitSha] Requires 40-char commit option', 1);
     }
 
-    public function doAccessToken()
+    public function doCreateAccessToken()
     {
         $response = $this->fetchAccessToken();
         $accessToken = $response['body']['access_token'];

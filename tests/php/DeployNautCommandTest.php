@@ -88,7 +88,7 @@ class DeployNautCommandTest extends TestCase
 
         // the output of the command in the console
         $output = $commandTester->getDisplay();
-        $this->assertContains('Sending request with: /meta', $output);
+        $this->assertContains('Sending request with: /naut/meta', $output);
 
         $response = $command->fetchUrl('meta');
 

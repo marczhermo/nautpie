@@ -26,53 +26,11 @@ Calls Git Fetch
 Collection of Previous Deployments
 
 ```
-./nautpie.phar deploy:naut deployments --stack=example --environment=teststack1 
+./nautpie.phar deploy:naut getDeployments --stack=example --environment=teststack1
 ```
 
 Last Deployment Details
 
 ```
-./nautpie.phar deploy:naut lastDeployment --stack=example --environment=teststack1 
+./nautpie.phar deploy:naut lastDeployment --stack=example --environment=teststack1
 ```
-
-
-## Bitbucket Pipelines
-
-Create a deployment with Git SHA
-
-```
-./nautpie.phar ci:bitbucket deployGitSha --stack=example --environment=uat --commit=40char-sha
-```
-
-Create a deployment with packaged .tar.gz file
-
-```
-./nautpie.phar ci:bitbucket deployPackage --stack=example --environment=uat --commit=40char-sha
-```
-
-Create a Bitbucket access token
-
-```
-./nautpie.phar ci:bitbucket accessToken
-```
-
-## How to Call Other Commands
-
-```
-use Symfony\Component\Console\Input\ArrayInput;
-// ...
-
-$command = $this->getApplication()->find('deploy:naut');
-$command->resetCurlData();
-$command->setContentType('application/vnd.api+json');
-$otherInput = new ArrayInput([
-    'command' => 'deploy:naut',
-    'action' => 'fetch'
-    '--url' => 'project/hello/environment/testsite/deploys?title=Release+4.8.2',
-]);
-$returnCode = $command->run($otherInput, $output);
-```
-
-## Building Phar Executable
-
-Run: `box build -v`
