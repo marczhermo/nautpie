@@ -1,0 +1,28 @@
+{
+    "name": "marczhermo/nautpie",
+    "description": "DeployNaut PHP Phar Client",
+    "type": "library",
+    "require": {
+        "symfony/console": "^3.4",
+        "symfony/process": "^3.4",
+        "guzzlehttp/ringphp": "^1.1@dev",
+        "vlucas/phpdotenv": "^2.5@dev"
+    },
+    "autoload": {
+        "psr-4": {
+            "Marcz\\Phar\\NautPie\\": "src/",
+            "Marcz\\Phar\\NautPie\\Tests\\": "tests/php/"
+        }
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Marco Hermo",
+            "email": "marco@silverstripe.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require-dev": {
+        "phpunit/phpunit": "^5.7"
+    }
+}
