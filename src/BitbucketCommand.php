@@ -148,7 +148,7 @@ class BitbucketCommand extends Command
         $this->setEndpoint('https://bitbucket.org/site');
         $this->setContentType('application/x-www-form-urlencoded');
         $this->setUsernameAndPassword(getenv('BB_CONSUMER_KEY'), getenv('BB_CONSUMER_SECRET'));
-        $response = $this->fetchUrl('oauth2/access_token/', POST, ['grant_type' => 'client_credentials']);
+        $response = $this->fetchUrl('oauth2/access_token/', 'POST', ['grant_type' => 'client_credentials']);
 
         if ($response['status'] !== 200) {
             throw new \Exception(var_export($response['body'], 1), 1);
