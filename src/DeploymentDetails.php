@@ -25,7 +25,7 @@ class DeploymentDetails
 
     public function values()
     {
-        return array_filter($this->details, [$this, 'isset']);
+        return array_filter($this->details, [$this, 'isNotNull']);
     }
 
     public function promoteFromUAT()
@@ -89,11 +89,11 @@ class DeploymentDetails
     }
 
     /**
-     * Work-around to use isset as a callback function
+     * Work-around to use isNotNull (aka isset)  as a callback function
      * @param  mixed $value
      * @return boolean
      */
-    public function isset($value)
+    public function isNotNull($value)
     {
         // Note: Because this is a language construct and not a function,
         // it cannot be called using variable functions.
