@@ -76,7 +76,7 @@ class BitbucketCommand extends Command
                 $repoOwner,
                 $repoSlug,
                 $commit,
-                $this->doAccessToken()
+                $this->doCreateAccessToken()
             );
 
             $command = $this->getApplication()->find('deploy:naut');
