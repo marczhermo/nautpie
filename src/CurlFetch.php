@@ -178,7 +178,8 @@ trait CurlFetch
             if ($this->contentType === 'application/x-www-form-urlencoded') {
                 $data['body'] = http_build_query($body);
             } else {
-                $data['body'] = json_encode($body, JSON_PRESERVE_ZERO_FRACTION);
+                $jsonOption = defined('JSON_PRESERVE_ZERO_FRACTION') ? JSON_PRESERVE_ZERO_FRACTION : 0;
+                $data['body'] = json_encode($body, $jsonOption);
             }
         }
 
