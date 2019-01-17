@@ -96,4 +96,44 @@ class DeployNautCommandTest extends TestCase
         $this->assertEquals([], $response['headers']);
         $this->assertEquals($expectedReturnedData, $response['body']);
     }
+
+    /**
+     * @expectedException \Exception
+     * @expectedExceptionCode 400
+     */
+    public function testBadCurlFetch()
+    {
+        $command = $this->command;
+        $data = $command->resetCurlData();
+        $expectedReturnedData = [
+            'errors' => [[
+                'status' => '400',
+                'title' => 'ref_type "" given but this is not supported',
+            ]]
+        ];
+
+        $handler = new MockHandler(
+            [
+                'status' => 400,
+                'reason' => 'Bad Request',
+                'body' => json_encode($expectedReturnedData)
+            ]
+        );
+        $command->setHandler($handler);
+        $commandTester = new CommandTester($command);
+        $commandTester->execute(
+            [
+                'command'  => $command->getName(),
+                'action' => 'Fetch',
+                '--url' => 'meta',
+            ]
+        );
+
+        // the output of the command in the console
+        $output = $commandTester->getDisplay();
+        $this->assertContains('Sending request with: /naut/meta', $output);
+        $this->assertContains(json_encode($expectedReturnedData), $output);
+
+        $response = $command->fetchUrl('meta');
+    }
 }

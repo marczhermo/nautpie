@@ -189,9 +189,21 @@ trait CurlFetch
         $client = $this->handler;
         $response = $client($data);
         $stream = Stream::factory($response['body']);
-        $response['body'] = json_decode($stream->getContents(), true);
+        $contents = $stream->getContents();
+        $response['body'] = json_decode($contents, true);
+
+        if ($this->isErrorResponse((int) $response['status'])) {
+            throw new \Exception('Response: ' . $contents, (int) $response['status']);
+        }
 
         return $response;
+    }
+
+    public function isErrorResponse($statusCode)
+    {
+        $statusCode = $statusCode ?: 0;
+
+        return $statusCode < 200 || $statusCode > 399;
     }
 
     public function isProductionEnvironment($environment)
