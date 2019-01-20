@@ -3,13 +3,16 @@
 namespace Marcz\Phar\NautPie\Tests;
 
 use GuzzleHttp\Ring\Client\MockHandler;
-use GuzzleHttp\Stream\Stream;
 use Marcz\Phar\NautPie\DeployNautCommand;
-use Symfony\Component\Console\Tester\CommandTester;
-use Symfony\Component\Console\Application;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Console\Application;
+use Symfony\Component\Console\Tester\CommandTester;
 
-class DeployNautCommandTest extends TestCase
+/**
+ * @internal
+ * @coversNothing
+ */
+final class DeployNautCommandTest extends TestCase
 {
     protected $app;
     protected $command;
@@ -26,15 +29,51 @@ class DeployNautCommandTest extends TestCase
         $this->app->add($this->command);
     }
 
+    public function testConfigure()
+    {
+        $command = $this->app->find('deploy:naut');
+        $definition = $command->getDefinition();
+        $arguments = $definition->getArguments();
+        $action = reset($arguments);
+
+        $this->assertCount(1, $arguments);
+        $this->assertTrue($action->isRequired());
+        $this->assertSame('action', $action->getName());
+        $this->assertSame('Command action', $action->getDescription());
+
+        $myOptions = [
+            'url' => '[Optional] URL',
+            'commit' => '[Optional] Git commit SHA',
+            'stack' => '[Optional] Project stack',
+            'environment' => '[Optional] Stack environment',
+            'startDate' => '[Optional] Start date',
+            'title' => '[Optional] Deployment title',
+            'summary' => '[Optional] Deployment summary',
+            'redeploy' => '[Optional] Redeploy last deployment',
+            'ref' => '[Optional] Deployment Reference',
+            'ref_type' => '[Optional] Deployment Type',
+            'bypass_and_start' => '[Optional] Deployment bypass and start',
+        ];
+        $options = $definition->getOptions();
+
+        $this->assertSame(array_keys($options), array_keys($myOptions));
+
+        foreach ($options as $option) {
+            $key = $option->getName();
+            $this->assertSame($option->getDescription(), $myOptions[$key]);
+            $this->assertTrue($option->isValueOptional());
+        }
+    }
+
     public function testSampleSuccess()
     {
         $application = $this->app;
         $command = $application->find('deploy:naut');
         $commandTester = new CommandTester($command);
-        $commandTester->execute(array(
-            'command'  => $command->getName(),
+        $commandTester->execute([
+            'command' => $command->getName(),
             'action' => 'SampleSuccess',
-        ));
+        ]);
 
         // the output of the command in the console
         $output = $commandTester->getDisplay();
@@ -47,10 +86,10 @@ class DeployNautCommandTest extends TestCase
         $application = $this->app;
         $command = $application->find('deploy:naut');
         $commandTester = new CommandTester($command);
-        $commandTester->execute(array(
-            'command'  => $command->getName(),
+        $commandTester->execute([
+            'command' => $command->getName(),
             'action' => 'SampleFail',
-        ));
+        ]);
 
         // the output of the command in the console
         $output = $commandTester->getDisplay();
@@ -66,21 +105,21 @@ class DeployNautCommandTest extends TestCase
             'meta' => [
                 'whoami' => 'joe@example.com',
                 'now' => '2017-05-09 11:57:00',
-            ]
+            ],
         ];
 
         $handler = new MockHandler(
             [
                 'status' => 200,
                 'reason' => 'OK',
-                'body' => json_encode($expectedReturnedData)
+                'body' => json_encode($expectedReturnedData),
             ]
         );
         $command->setHandler($handler);
         $commandTester = new CommandTester($command);
         $commandTester->execute(
             [
-                'command'  => $command->getName(),
+                'command' => $command->getName(),
                 'action' => 'Fetch',
                 '--url' => 'meta',
             ]
@@ -92,38 +131,37 @@ class DeployNautCommandTest extends TestCase
 
         $response = $command->fetchUrl('meta');
 
-        $this->assertEquals(200, $response['status']);
-        $this->assertEquals([], $response['headers']);
-        $this->assertEquals($expectedReturnedData, $response['body']);
+        $this->assertSame(200, $response['status']);
+        $this->assertSame([], $response['headers']);
+        $this->assertSame($expectedReturnedData, $response['body']);
     }
 
-    /**
-     * @expectedException \Exception
-     * @expectedExceptionCode 400
-     */
     public function testBadCurlFetch()
     {
+        $this->expectException(\Exception::class);
+        $this->expectExceptionCode(400);
+
         $command = $this->command;
         $data = $command->resetCurlData();
         $expectedReturnedData = [
             'errors' => [[
                 'status' => '400',
                 'title' => 'ref_type "" given but this is not supported',
-            ]]
+            ]],
         ];
 
         $handler = new MockHandler(
             [
                 'status' => 400,
                 'reason' => 'Bad Request',
-                'body' => json_encode($expectedReturnedData)
+                'body' => json_encode($expectedReturnedData),
             ]
         );
         $command->setHandler($handler);
         $commandTester = new CommandTester($command);
         $commandTester->execute(
             [
-                'command'  => $command->getName(),
+                'command' => $command->getName(),
                 'action' => 'Fetch',
                 '--url' => 'meta',
             ]

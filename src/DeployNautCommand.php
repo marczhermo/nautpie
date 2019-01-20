@@ -28,13 +28,27 @@ class DeployNautCommand extends Command
         'bypass_and_start' => '[Optional] Deployment bypass and start',
     ];
 
+    /**
+     * This method is automatically called by the constructor.
+     * Useful for initialising environments and options
+     */
     protected function configure()
     {
-        $this->addArgument('action', InputArgument::OPTIONAL, 'Command action');
+        $this->addArgument('action', InputArgument::REQUIRED, 'Command action');
 
         $this->setOptions($this->myOptions);
     }
 
+    /**
+     * Executes the current command
+     * Requires Environment variables in order to run:
+     * NAUT_ENDPOINT = DeployNaut API URL, https://platform.silverstripe.com/naut
+     * DASH_USER = Email address coming from Platform account
+     * DASH_TOKEN = Personal API Password Token
+     * @param  InputInterface  $input
+     * @param  OutputInterface $output
+     * @return int A value of 1 or more signals an error. Zero/void is successful
+     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $action = $input->getArgument('action');
@@ -211,13 +225,4 @@ class DeployNautCommand extends Command
         return $response;
     }
 
-    public function doSampleSuccess()
-    {
-        $this->success('[Action:Success] Response successful.');
-    }
-
-    public  function doSampleFail()
-    {
-        throw new \Exception('[Action:Fail] Has failed.', 1);
-    }
 }
