@@ -203,7 +203,9 @@ class DeployNautCommand extends Command
 
     public function doLastDeployment()
     {
-        return reset($this->doDeployments());
+        $deployments = $this->doGetDeployments();
+
+        return reset($deployments);
     }
 
     public function fetchDeployments($stack, $environment, $startDate = '-1 year', $filters = [])
