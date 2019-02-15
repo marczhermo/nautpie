@@ -159,7 +159,7 @@ class DeployNautCommand extends Command
 
     public function doGetDeployments()
     {
-        $startDate = $this->getOption('startDate') ?: '-1 month';
+        $startDate = $this->getOption('startDate') ?: '-1 year';
         $stack = $this->getOption('stack');
         $environment = $this->getOption('environment');
         $deployments = [];
