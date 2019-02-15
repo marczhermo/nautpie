@@ -134,6 +134,24 @@ class BitbucketCommand extends Command
         return $accessToken;
     }
 
+    public function doCreateTag()
+    {
+        $commit = $this->getOption('commit');
+        $relativeUrl = sprintf(
+            'repositories/%s/%s/refs/tags',
+            getenv('BITBUCKET_REPO_OWNER'),
+            getenv('BITBUCKET_REPO_SLUG')
+        );
+
+        $payload = [
+            'name' => 'release-rc-' . $commit,
+            'target' => ['hash' => $commit],
+        ];
+
+        $response = $this->fetchUrl($relativeUrl, 'POST', $payload);
+        fwrite(STDERR, print_r([$response], true));
+    }
+
     /**
      * Creates an access token which normally expires in 2 hours
      *
