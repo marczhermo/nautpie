@@ -36,11 +36,12 @@ trait EnvironmentHelper
         $envs = [];
         foreach (func_get_args() as $env) {
             $value = getenv($env);
-            $envs[] = $value;
 
             if (empty($value)) {
                 throw new \Exception('[Required:ENV] ' .$env. ' is missing.', 1);
             }
+
+            $envs[] = $value;
         }
 
         return $envs;

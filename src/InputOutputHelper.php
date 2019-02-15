@@ -78,4 +78,21 @@ trait InputOutputHelper
             fwrite(STDERR, print_r([$message], true));
         }
     }
+
+    public function checkRequiredOptions()
+    {
+        $args = [];
+
+        foreach (func_get_args() as $param) {
+            $value = $this->getOption($param);
+
+            if (empty($value)) {
+                throw new \Exception('[Required:Option] ' .$param. ' is missing.', 1);
+            }
+
+            $args[] = $value;
+        }
+
+        return $args;
+    }
 }

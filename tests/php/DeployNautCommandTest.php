@@ -53,6 +53,8 @@ final class DeployNautCommandTest extends TestCase
             'ref' => '[Optional] Deployment Reference',
             'ref_type' => '[Optional] Deployment Type',
             'bypass_and_start' => '[Optional] Deployment bypass and start',
+            'deploy_id' => '[Optional] Deployment ID',
+            'should_wait' => '[Optional] Wait for deployment to finish',
         ];
         $options = $definition->getOptions();
 
