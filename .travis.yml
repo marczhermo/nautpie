@@ -22,6 +22,7 @@ install:
   - ls -lat vendor
 
 script:
+  - mkdir ./bin
   - ./vendor/bin/phpunit
   - rm -rf vendor
   - composer install --no-dev
