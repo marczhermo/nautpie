@@ -10,6 +10,7 @@
         {
             "name": "*.php",
             "exclude": [
+                "bin",
                 "tests",
                 "Tests",
                 "phpunit",
@@ -25,6 +26,6 @@
     ],
     "git-version": "package_version",
     "main": "nautpie.php",
-    "output": "nautpie.phar",
+    "output": "bin/nautpie.phar",
     "stub": true
 }

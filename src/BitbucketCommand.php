@@ -20,6 +20,8 @@ class BitbucketCommand extends Command
         'stack' => '[Optional] Project stack',
         'environment' => '[Optional] Stack environment',
         'bypass_and_start' => '[Optional] Deployment bypass and start',
+        'deploy_id' => '[Optional] Deployment ID',
+        'should_wait' => '[Optional] Wait for deployment to finish',
     ];
 
     protected function configure()
@@ -60,43 +62,72 @@ class BitbucketCommand extends Command
 
     public function doDeployPackage()
     {
-        $commit = $this->getOption('commit');
-        $stack = $this->getOption('stack');
-        $environment = $this->getOption('environment');
         $bypassAndStart = $this->getOption('bypass_and_start') ?: true;
-        if ($commit && strlen($commit) === 40 && $stack && $environment) {
-            $repoOwner = getenv('BITBUCKET_REPO_OWNER');
-            $repoSlug = getenv('BITBUCKET_REPO_SLUG');
-            $endPoint = getenv('BB_ENDPOINT');
-            $branchName = getenv('BITBUCKET_BRANCH');
+        $shouldWait = $this->getOption('should_wait') ?: false;
 
-            $downloadLink = sprintf(
-                '%s/repositories/%s/%s/downloads/%s.tar.gz?access_token=%s',
-                $endPoint,
-                $repoOwner,
-                $repoSlug,
-                $commit,
-                $this->doCreateAccessToken()
-            );
+        list($commit, $stack, $environment) = $this->checkRequiredOptions(
+            'commit',
+            'stack',
+            'environment'
+        );
 
-            $command = $this->getApplication()->find('deploy:naut');
-            $command->resetCurlData();
-            $otherInput = new ArrayInput([
-                'command' => 'deploy:naut',
-                'action' => 'createDeployment',
-                '--stack' => $stack,
-                '--environment' => $environment,
-                '--ref_type' => 'package',
-                '--ref' => $downloadLink,
-                '--title' => '[CI:Package] ' . $commit,
-                '--summary' => 'Branch:' . $branchName,
-                '--bypass_and_start' => $bypassAndStart,
-            ]);
-
-            return $command->run($otherInput, $this->output);
+        if (strlen($commit) !== 40) {
+            throw new \Exception('[Action:DeployPackage] Requires stack, environment and 40-char commit', 1);
         }
 
-        throw new \Exception('[Action:DeployPackage] Requires stack, environment and 40-char commit', 1);
+        list($repoOwner, $repoSlug, $endPoint, $branchName) = $this->checkEnvs(
+            'BITBUCKET_REPO_OWNER',
+            'BITBUCKET_REPO_SLUG',
+            'BB_ENDPOINT',
+            'BITBUCKET_BRANCH'
+        );
+
+        $downloadLink = sprintf(
+            '%s/repositories/%s/%s/downloads/%s.tar.gz?access_token=%s',
+            $endPoint,
+            $repoOwner,
+            $repoSlug,
+            $commit,
+            $this->doCreateAccessToken()
+        );
+
+        $command = $this->getApplication()->find('deploy:naut');
+        $command->resetCurlData();
+        $createDeploymentInput = new ArrayInput([
+            'command' => 'deploy:naut',
+            'action' => 'createDeployment',
+            '--stack' => $stack,
+            '--environment' => $environment,
+            '--ref_type' => 'package',
+            '--ref' => $downloadLink,
+            '--title' => '[CI:Package] ' . $commit,
+            '--summary' => 'Branch:' . $branchName,
+            '--bypass_and_start' => $bypassAndStart,
+        ]);
+
+        $response = $command->run($createDeploymentInput, $this->output);
+
+        $deploymentId = $response['body']['data']['id'];
+
+        if ($deploymentId && $shouldWait) {
+            $this->checkDeploymentById($deploymentId);
+        }
+    }
+
+    public function checkDeploymentById($deploymentId)
+    {
+        list($stack, $environment) = $this->checkRequiredOptions('stack', 'environment');
+        $command = $this->getApplication()->find('deploy:naut');
+        $command->resetCurlData();
+        $deploymentStatusInput = new ArrayInput([
+            'command' => 'deploy:naut',
+            'action' => 'checkDeployment',
+            '--stack' => $stack,
+            '--environment' => $environment,
+            '--deploy_id' => $deploymentId,
+        ]);
+
+        return $command->run($deploymentStatusInput, $this->output);
     }
 
     public function doDeployGitSha()
@@ -132,6 +163,23 @@ class BitbucketCommand extends Command
         $response = $this->fetchAccessToken();
         $accessToken = $response['body']['access_token'];
         return $accessToken;
+    }
+
+    public function doCreateTag()
+    {
+        $commit = $this->getOption('commit');
+        $relativeUrl = sprintf(
+            'repositories/%s/%s/refs/tags',
+            getenv('BITBUCKET_REPO_OWNER'),
+            getenv('BITBUCKET_REPO_SLUG')
+        );
+
+        $payload = [
+            'name' => 'release-rc-' . $commit,
+            'target' => ['hash' => $commit],
+        ];
+
+        return $this->fetchUrl($relativeUrl, 'POST', $payload);
     }
 
     /**
