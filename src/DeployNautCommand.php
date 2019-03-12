@@ -81,52 +81,66 @@ class DeployNautCommand extends Command
         $output->writeln(json_encode($response, JSON_PRETTY_PRINT));
     }
 
+    /**
+     * Creates a deployment on Cloud Platform
+     * @return string JSON response
+     */
     public function doCreateDeployment()
     {
-        $stack = $this->getOption('stack');
-        $environment = $this->getOption('environment');
-        $ref = $this->getOption('ref');
-        $refType = $this->getOption('ref_type');
+        $ref = $this->getOption('ref') ?: null;
+        list($stack, $environment, $refType) = $this->checkRequiredOptions(
+            'stack',
+            'environment',
+            'ref_type'
+        );
 
-        if ($stack && $environment && $refType) {
-            $details = new DeploymentDetails([
-                'ref_type' => $refType,
-                'ref' => $this->getOption('ref') ?: null,
-                'title' => $this->getOption('title') ?: null,
-                'summary' => $this->getOption('summary') ?: null,
-            ]);
+        $details = new DeploymentDetails([
+            'ref_type' => $refType,
+            'ref' => $ref,
+            'title' => $this->getOption('title') ?: null,
+            'summary' => $this->getOption('summary') ?: null,
+        ]);
 
-            $startDate = $this->getOption('startDate');
-            if ($startDate) {
-                $details->scheduleToStart($startDate);
-            }
-
-            $bypassAndStart = $this->getOption('bypass_and_start');
-            if ($bypassAndStart && !$this->isProductionEnvironment($environment)) {
-                $details->bypassAndStart($bypassAndStart);
-            }
-
-            $redeploy = $this->getOption('redeploy');
-            if ($redeploy && !$this->isProductionEnvironment($environment)) {
-                $details->redeploy($redeploy);
-            }
-
-            if (!$ref && !$redeploy && $refType !== 'promote_from_uat') {
-                throw new \Exception('[Action:CreateDeployment] Requires ref option', 1);
-            }
-
-            $relativeUrl = sprintf(
-                'project/%s/environment/%s/deploys',
-                $stack,
-                $environment
-            );
-
-            return $this->fetchUrl($relativeUrl, 'POST', $details->values());
-        } else {
-            throw new \Exception('[Action:CreateDeployment] Requires stack, environment and reference type', 1);
+        $startDate = $this->getOption('startDate');
+        if ($startDate) {
+            $details->scheduleToStart($startDate);
         }
+
+        $bypassAndStart = $this->getOption('bypass_and_start');
+        if ($bypassAndStart && !$this->isProductionEnvironment($environment)) {
+            $details->bypassAndStart($bypassAndStart);
+        }
+
+        $redeploy = $this->getOption('redeploy');
+        if ($redeploy && !$this->isProductionEnvironment($environment)) {
+            $details->redeploy($redeploy);
+        }
+
+        if (!$ref && !$redeploy && $refType !== 'promote_from_uat') {
+            throw new \Exception('[Action:CreateDeployment] Requires ref option', 1);
+        }
+
+        $relativeUrl = sprintf(
+            'project/%s/environment/%s/deploys',
+            $stack,
+            $environment
+        );
+
+        $response = $this->fetchUrl($relativeUrl, 'POST', $details->values());
+        $shouldWait = $this->getOption('should_wait') ?: false;
+        $deployId = $response['body']['data']['id'];
+
+        if ($shouldWait && $deployId) {
+            $this->checkDeploymentProgress($deployId, $stack, $environment);
+        }
+
+        return $response;
     }
 
+    /**
+     * This is similar on Cloud Platform which executes a git fetch.
+     * @return string JSON Response
+     */
     public function doGitFetch()
     {
         $stack = $this->getOption('stack');
@@ -170,6 +184,11 @@ class DeployNautCommand extends Command
         } while ($isWaiting);
     }
 
+    /**
+     * Fetches the Cloud Platform of a collection of deployments over the last year.
+     * Sorted from the latest deployment first
+     * @return string JSON Response
+     */
     public function doGetDeployments()
     {
         $startDate = $this->getOption('startDate') ?: '-1 year';
@@ -214,6 +233,11 @@ class DeployNautCommand extends Command
         return array_values($deployments);
     }
 
+    /**
+     * Get the latest deployment
+     * Uses doGetDeployments and return the first record
+     * @return string JSON Response
+     */
     public function doLastDeployment()
     {
         $deployments = $this->doGetDeployments();
@@ -221,7 +245,11 @@ class DeployNautCommand extends Command
         return reset($deployments);
     }
 
-    public function doCheckDeployment()
+    /**
+     * Checks the deployment progress with a max timeout wait
+     * @see  self::DEPLOY_TIMEOUT
+     */
+    public function doCheckDeploymentProgress()
     {
         list($stack, $environment, $deployId) = $this->checkRequiredOptions(
             'stack',
@@ -229,6 +257,17 @@ class DeployNautCommand extends Command
             'deploy_id'
         );
 
+        $this->checkDeploymentProgress($deployId, $stack, $environment);
+    }
+
+    /**
+     * Performs the actual API call for checking deployment progress
+     * @param  string $deployId    Numerical ID
+     * @param  string $stack       Stack
+     * @param  string $environment Environment
+     */
+    public function checkDeploymentProgress($deployId, $stack, $environment)
+    {
         $relativeUrl = sprintf(
             'project/%s/environment/%s/deploys/%s',
             $stack,
@@ -243,7 +282,7 @@ class DeployNautCommand extends Command
             $timer += $sleep;
             if ($timer > self::DEPLOY_TIMEOUT) {
                 $isWaiting = false;
-                throw new \Exception('[Error:CheckDeployment] ' . self::DEPLOY_TIMEOUT . 'seconds timeout', 1);
+                throw new \Exception('[Error:DEPLOY_TIMEOUT] ' . self::DEPLOY_TIMEOUT . 'seconds timeout', 1);
             }
 
             $this->warning('Waiting for 5 seconds...');
@@ -259,6 +298,14 @@ class DeployNautCommand extends Command
         } while ($isWaiting);
     }
 
+    /**
+     * Fetch Cloud Platform deployments
+     * @param  string $stack       Stack
+     * @param  string $environment Environment
+     * @param  string $startDate   Date/time string
+     * @param  array  $filters     Filters
+     * @return string              JSON Response
+     */
     public function fetchDeployments($stack, $environment, $startDate = '-1 year', $filters = [])
     {
         $filters = array_merge($filters, ['datestarted_from_unix' => strtotime($startDate)]);

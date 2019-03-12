@@ -62,18 +62,11 @@ class BitbucketCommand extends Command
 
     public function doDeployPackage()
     {
-        $bypassAndStart = $this->getOption('bypass_and_start') ?: true;
-        $shouldWait = $this->getOption('should_wait') ?: false;
-
         list($commit, $stack, $environment) = $this->checkRequiredOptions(
             'commit',
             'stack',
             'environment'
         );
-
-        if (strlen($commit) !== 40) {
-            throw new \Exception('[Action:DeployPackage] Requires stack, environment and 40-char commit', 1);
-        }
 
         list($repoOwner, $repoSlug, $endPoint, $branchName) = $this->checkEnvs(
             'BITBUCKET_REPO_OWNER',
@@ -100,18 +93,13 @@ class BitbucketCommand extends Command
             '--environment' => $environment,
             '--ref_type' => 'package',
             '--ref' => $downloadLink,
-            '--title' => '[CI:Package] ' . $commit,
+            '--title' => '[CD:Package] ' . $commit,
             '--summary' => 'Branch:' . $branchName,
-            '--bypass_and_start' => $bypassAndStart,
+            '--bypass_and_start' => $this->getOption('bypass_and_start') ?: true,
+            '--should_wait' => $this->getOption('should_wait') ?: false,
         ]);
 
-        $response = $command->run($createDeploymentInput, $this->output);
-
-        $deploymentId = $response['body']['data']['id'];
-
-        if ($deploymentId && $shouldWait) {
-            $this->checkDeploymentById($deploymentId);
-        }
+        return $command->run($createDeploymentInput, $this->output);
     }
 
     public function checkDeploymentById($deploymentId)

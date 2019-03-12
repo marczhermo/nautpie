@@ -90,9 +90,21 @@ trait InputOutputHelper
                 throw new \Exception('[Required:Option] ' .$param. ' is missing.', 1);
             }
 
+            $methodName = 'validate' . ucfirst(strtolower($param));
+            if (method_exists($this, $methodName)) {
+                call_user_func_array([$this, $methodName], [$value]);
+            }
+
             $args[] = $value;
         }
 
         return $args;
+    }
+
+    public function validateCommit($commit)
+    {
+        if (strlen($commit) !== 40) {
+            throw new \Exception('[Action:DeployPackage] Requires stack, environment and 40-char commit', 1);
+        }
     }
 }
