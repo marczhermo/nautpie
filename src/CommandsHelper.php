@@ -10,6 +10,12 @@ use Symfony\Component\Console\Input\InputOption;
 
 trait CommandsHelper
 {
+    /**
+     * Executes a named method using a convention of 'do' + function name
+     * @param  string $action     Action Name which translates to method name
+     * @param  array  $parameters Passed arguments to the method
+     * @return string             Response or JSON-encoded string
+     */
     public function executeAction($action, $parameters = [])
     {
         return call_user_func_array([$this, 'do' . ucfirst($action)], $parameters);
@@ -17,7 +23,10 @@ trait CommandsHelper
 
     public function doSampleSuccess()
     {
-        $this->success('[Action:Success] Response successful.');
+        $message = '[Action:Success] Response successful.';
+        $this->success($message);
+
+        return $message;
     }
 
     public  function doSampleFail()

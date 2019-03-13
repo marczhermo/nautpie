@@ -158,7 +158,7 @@ trait CurlHelper
             throw new \Exception('Response: ' . $contents, (int) $response['status']);
         }
 
-        return $response;
+        return $response['body'];
     }
 
     public function isErrorResponse($statusCode)

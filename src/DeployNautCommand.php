@@ -72,6 +72,7 @@ class DeployNautCommand extends Command
 
         try {
             $response = $this->executeAction($action);
+            fwrite(STDERR, print_r(['response', $response], true));
         } catch (\Exception $e) {
             $this->output->writeln('<error> ' . $e->getMessage() . ' </error>');
             // Greater than zero is an error

@@ -4,12 +4,14 @@ namespace Marcz\Phar\NautPie;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\ConsoleOutputInterface;
 
 trait InputOutputHelper
 {
     protected $input;
     protected $output;
     protected $options = [];
+    protected $stdErr;
 
     /**
      * Initializes the command after the input has been bound and before the input
@@ -25,6 +27,11 @@ trait InputOutputHelper
     {
         $this->input = $input;
         $this->output = $output;
+
+        // If it's available, get stdErr output
+        if($output instanceof ConsoleOutputInterface) {
+            $this->stdErr = $output->getErrorOutput();
+        }
 
         $this->loadEnvironment();
         $this->curlSetup();
@@ -54,8 +61,8 @@ trait InputOutputHelper
 
     public function warning($message)
     {
-        if ($this->output) {
-            $this->output->writeln('<fg=red;bg=yellow;> '. $message .' </>');
+        if ($this->stdErr) {
+            $this->stdErr->writeln('<fg=red;bg=yellow;> '. $message .' </>');
         } else {
             $this->message($message);
         }
@@ -63,8 +70,8 @@ trait InputOutputHelper
 
     public function success($message)
     {
-        if ($this->output) {
-            $this->output->writeln('<fg=black;bg=green;> '. $message .' </>');
+        if ($this->stdErr) {
+            $this->stdErr->writeln('<fg=black;bg=green;> '. $message .' </>');
         } else {
             $this->message($message);
         }
@@ -72,8 +79,8 @@ trait InputOutputHelper
 
     public function message($message) {
         $message = is_array($message) ? var_export($message, 1) : $message;
-        if ($this->output) {
-            $this->output->writeln('<info> '. $message .' </>');
+        if ($this->stdErr) {
+            $this->stdErr->writeln('<info> '. $message .' </>');
         } else {
             fwrite(STDERR, print_r([$message], true));
         }
