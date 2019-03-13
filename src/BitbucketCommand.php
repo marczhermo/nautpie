@@ -11,6 +11,7 @@ use Symfony\Component\Console\Input\ArrayInput;
 class BitbucketCommand extends Command
 {
     use CurlFetch;
+    use CheckHelper;
 
     protected static $defaultName = 'ci:bitbucket';
     private $description = 'Bitbucket Pipelines';

@@ -10,6 +10,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 class DeployNautCommand extends Command
 {
     use CurlFetch;
+    use CheckHelper;
 
     CONST GIT_TIMEOUT = 120; // 2 minutes or 120 seconds
     CONST DEPLOY_TIMEOUT = 1800; // 30 minutes or 1800 seconds
@@ -71,15 +72,18 @@ class DeployNautCommand extends Command
             $response = $this->executeAction($action);
         } catch (\Exception $e) {
             $body = json_decode($e->getMessage(), 1);
+
             if (is_null($body)) {
                 $this->warning($e->getMessage());
                 $body = sprintf('"%s"', $e->getMessage());
             }
+
             $response = [
                 'status' => $e->getCode() ?: 1,
                 'reason' => 'Bad Request',
                 'body'=> $body,
             ];
+
             $output->writeln(json_encode($response));
 
             // Greater than zero is an error
@@ -135,7 +139,7 @@ class DeployNautCommand extends Command
         );
 
         $response = $this->fetchUrl($relativeUrl, 'POST', $details->values());
-        $shouldWait = $this->getOption('should_wait') ?: false;
+        $shouldWait = $this->checkBoolean($this->getOption('should_wait'));
         $deployId = $response['body']['data']['id'];
 
         if ($shouldWait && $deployId) {
