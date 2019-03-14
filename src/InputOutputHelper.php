@@ -4,12 +4,14 @@ namespace Marcz\Phar\NautPie;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
-
+use Symfony\Component\Console\Output\ConsoleOutputInterface;
+use Symfony\Component\Console\Output\StreamOutput;
 trait InputOutputHelper
 {
     protected $input;
     protected $output;
     protected $options = [];
+    protected $stdErr;
 
     /**
      * Initializes the command after the input has been bound and before the input
@@ -25,6 +27,13 @@ trait InputOutputHelper
     {
         $this->input = $input;
         $this->output = $output;
+
+        // If it's available, get stdErr output
+        if($output instanceof ConsoleOutputInterface) {
+            $this->stdErr = $output->getErrorOutput();
+        } else {
+            $this->stdErr = new StreamOutput(fopen('php://stderr', 'w'));
+        }
 
         $this->loadEnvironment();
         $this->curlSetup();
@@ -54,29 +63,21 @@ trait InputOutputHelper
 
     public function warning($message)
     {
-        if ($this->output) {
-            $this->output->writeln('<fg=red;bg=yellow;> '. $message .' </>');
-        } else {
-            $this->message($message);
-        }
+        $this->message($message, 'fg=red;bg=yellow;');
     }
 
     public function success($message)
     {
-        if ($this->output) {
-            $this->output->writeln('<fg=black;bg=green;> '. $message .' </>');
-        } else {
-            $this->message($message);
-        }
+        $this->message($message, 'fg=black;bg=green;');
     }
 
-    public function message($message) {
+    public function message($message, $template = 'info')
+    {
         $message = is_array($message) ? var_export($message, 1) : $message;
-        if ($this->output) {
-            $this->output->writeln('<info> '. $message .' </>');
-        } else {
-            fwrite(STDERR, print_r([$message], true));
-        }
+
+        $this->stdErr->writeln(
+            sprintf('<%s>  %s </>', $template, $message)
+        );
     }
 
     public function checkRequiredOptions()
@@ -90,9 +91,21 @@ trait InputOutputHelper
                 throw new \Exception('[Required:Option] ' .$param. ' is missing.', 1);
             }
 
+            $methodName = 'validate' . ucfirst(strtolower($param));
+            if (method_exists($this, $methodName)) {
+                call_user_func_array([$this, $methodName], [$value]);
+            }
+
             $args[] = $value;
         }
 
         return $args;
+    }
+
+    public function validateCommit($commit)
+    {
+        if (strlen($commit) !== 40) {
+            throw new \Exception('[Action:DeployPackage] Requires 40-char commit', 1);
+        }
     }
 }
