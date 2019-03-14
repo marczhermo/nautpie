@@ -5,7 +5,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\ConsoleOutputInterface;
-
+use Symfony\Component\Console\Output\StreamOutput;
 trait InputOutputHelper
 {
     protected $input;
@@ -31,6 +31,8 @@ trait InputOutputHelper
         // If it's available, get stdErr output
         if($output instanceof ConsoleOutputInterface) {
             $this->stdErr = $output->getErrorOutput();
+        } else {
+            $this->stdErr = new StreamOutput(fopen('php://stderr', 'w'));
         }
 
         $this->loadEnvironment();
@@ -61,29 +63,21 @@ trait InputOutputHelper
 
     public function warning($message)
     {
-        if ($this->stdErr) {
-            $this->stdErr->writeln('<fg=red;bg=yellow;> '. $message .' </>');
-        } else {
-            $this->message($message);
-        }
+        $this->message($message, 'fg=red;bg=yellow;');
     }
 
     public function success($message)
     {
-        if ($this->stdErr) {
-            $this->stdErr->writeln('<fg=black;bg=green;> '. $message .' </>');
-        } else {
-            $this->message($message);
-        }
+        $this->message($message, 'fg=black;bg=green;');
     }
 
-    public function message($message) {
+    public function message($message, $template = 'info')
+    {
         $message = is_array($message) ? var_export($message, 1) : $message;
-        if ($this->stdErr) {
-            $this->stdErr->writeln('<info> '. $message .' </>');
-        } else {
-            fwrite(STDERR, print_r([$message], true));
-        }
+
+        $this->stdErr->writeln(
+            sprintf('<%s>  %s </>', $template, $message)
+        );
     }
 
     public function checkRequiredOptions()
@@ -111,7 +105,7 @@ trait InputOutputHelper
     public function validateCommit($commit)
     {
         if (strlen($commit) !== 40) {
-            throw new \Exception('[Action:DeployPackage] Requires stack, environment and 40-char commit', 1);
+            throw new \Exception('[Action:DeployPackage] Requires 40-char commit', 1);
         }
     }
 }

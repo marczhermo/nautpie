@@ -118,12 +118,12 @@ class DeployNautCommand extends Command
             $details->scheduleToStart($startDate);
         }
 
-        $bypassAndStart = $this->getOption('bypass_and_start');
+        $bypassAndStart = $this->checkBoolean($this->getOption('bypass_and_start'));
         if ($bypassAndStart && !$this->isProductionEnvironment($environment)) {
             $details->bypassAndStart($bypassAndStart);
         }
 
-        $redeploy = $this->getOption('redeploy');
+        $redeploy = $this->checkBoolean($this->getOption('redeploy'));
         if ($redeploy && !$this->isProductionEnvironment($environment)) {
             $details->redeploy($redeploy);
         }

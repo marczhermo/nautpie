@@ -7,6 +7,8 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\StreamOutput;
+use Marcz\Phar\NautPie\DeployNautCommand;
 
 class BitbucketCommand extends Command
 {
@@ -20,6 +22,8 @@ class BitbucketCommand extends Command
         'commit' => '[Optional] Git commit SHA',
         'stack' => '[Optional] Project stack',
         'environment' => '[Optional] Stack environment',
+        'title' => '[Optional] Deployment title',
+        'summary' => '[Optional] Deployment summary',
         'bypass_and_start' => '[Optional] Deployment bypass and start',
         'deploy_id' => '[Optional] Deployment ID',
         'should_wait' => '[Optional] Wait for deployment to finish',
@@ -27,7 +31,7 @@ class BitbucketCommand extends Command
 
     protected function configure()
     {
-        $this->addArgument('action', InputArgument::OPTIONAL, 'Command action');
+        $this->addArgument('action', InputArgument::REQUIRED, 'Command action');
 
         $this->setOptions($this->myOptions);
     }
@@ -35,30 +39,39 @@ class BitbucketCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $action = $input->getArgument('action');
-        $authorization = getenv('BB_AUTH_STRING');
         $endPoint = $this->endPoint ?: getenv('BB_ENDPOINT');
 
-        if ($action && $authorization && $endPoint) {
-            $this->setEndpoint($endPoint);
-
-            $this->setAuthorization($authorization);
-
-            $this->warning($this->endPoint);
-
-            try {
-                $response = $this->executeAction($action);
-            } catch (\Exception $e) {
-                $this->output->writeln('<error> ' . $e->getMessage() . ' </error>');
-                // Greater than zero is an error
-                return 1;
+        try {
+            if (!$action || !$endPoint) {
+                throw new \Exception('[Missing] Action or End Point', 1);
             }
 
-            $output->writeln('Response:'. var_export($response, 1));
-        } else {
-            $output->writeln('<error> Missing Action </error>');
+            list($authorization) = $this->checkEnvs('BB_AUTH_STRING');
+            $this->setEndpoint($endPoint);
+            $this->setAuthorization($authorization);
+
+            $response = $this->executeAction($action);
+        } catch (\Exception $e) {
+            $body = json_decode($e->getMessage(), 1);
+
+            if (is_null($body)) {
+                $this->warning($e->getMessage());
+                $body = sprintf('"%s"', $e->getMessage());
+            }
+
+            $response = [
+                'status' => $e->getCode() ?: 1,
+                'reason' => 'Bad Request',
+                'body'=> $body,
+            ];
+
+            $output->writeln(json_encode($response));
+
             // Greater than zero is an error
             return 1;
         }
+
+        $output->writeln(json_encode($response));
     }
 
     public function doDeployPackage()
@@ -76,13 +89,16 @@ class BitbucketCommand extends Command
             'BITBUCKET_BRANCH'
         );
 
+        $tokenResponse = $this->doCreateAccessToken();
+        $accessToken = $tokenResponse['body']['access_token'];
+
         $downloadLink = sprintf(
             '%s/repositories/%s/%s/downloads/%s.tar.gz?access_token=%s',
             $endPoint,
             $repoOwner,
             $repoSlug,
             $commit,
-            $this->doCreateAccessToken()
+            $accessToken
         );
 
         $command = $this->getApplication()->find('deploy:naut');
@@ -96,71 +112,25 @@ class BitbucketCommand extends Command
             '--ref' => $downloadLink,
             '--title' => '[CD:Package] ' . $commit,
             '--summary' => 'Branch:' . $branchName,
-            '--bypass_and_start' => $this->getOption('bypass_and_start') ?: true,
-            '--should_wait' => $this->getOption('should_wait') ?: false,
+            '--bypass_and_start' => $this->getOption('bypass_and_start'),
+            '--should_wait' => $this->getOption('should_wait'),
         ]);
 
         return $command->run($createDeploymentInput, $this->output);
     }
 
-    public function checkDeploymentById($deploymentId)
-    {
-        list($stack, $environment) = $this->checkRequiredOptions('stack', 'environment');
-        $command = $this->getApplication()->find('deploy:naut');
-        $command->resetCurlData();
-        $deploymentStatusInput = new ArrayInput([
-            'command' => 'deploy:naut',
-            'action' => 'checkDeployment',
-            '--stack' => $stack,
-            '--environment' => $environment,
-            '--deploy_id' => $deploymentId,
-        ]);
-
-        return $command->run($deploymentStatusInput, $this->output);
-    }
-
-    public function doDeployGitSha()
-    {
-        $commit = $this->getOption('commit');
-        $stack = $this->getOption('stack');
-        $environment = $this->getOption('environment');
-        $bypassAndStart = $this->getOption('bypass_and_start') ?: true;
-        if ($commit && strlen($commit) === 40 && $stack && $environment) {
-            $branchName = getenv('BITBUCKET_BRANCH');
-            $command = $this->getApplication()->find('deploy:naut');
-            $command->resetCurlData();
-            $otherInput = new ArrayInput([
-                'command' => 'deploy:naut',
-                'action' => 'createDeployment',
-                '--stack' => $stack,
-                '--environment' => $environment,
-                '--ref_type' => 'sha',
-                '--ref' => $commit,
-                '--title' => '[CI:SHA] ' . $commit,
-                '--summary' => 'Branch:' . $branchName,
-                '--bypass_and_start' => $bypassAndStart,
-            ]);
-
-            return $command->run($otherInput, $this->output);
-        }
-
-        throw new \Exception('[Action:DeployGitSha] Requires 40-char commit option', 1);
-    }
-
-    public function doCreateAccessToken()
-    {
-        $response = $this->fetchAccessToken();
-        $accessToken = $response['body']['access_token'];
-        return $accessToken;
-    }
-
     public function doCreateTag()
     {
-        $commit = $this->getOption('commit');
+        list($commit) = $this->checkRequiredOptions('commit');
+        list($repoOwner, $repoSlug) = $this->checkEnvs(
+            'BITBUCKET_REPO_OWNER',
+            'BITBUCKET_REPO_SLUG'
+        );
+
         $relativeUrl = sprintf(
             'repositories/%s/%s/refs/tags',
-            getenv('BITBUCKET_REPO_OWNER'),
-            getenv('BITBUCKET_REPO_SLUG')
+            $repoOwner,
+            $repoSlug
         );
 
         $payload = [
@@ -169,6 +139,15 @@ class BitbucketCommand extends Command
         ];
 
         return $this->fetchUrl($relativeUrl, 'POST', $payload);
+    }
+
+    public function doCreateAccessToken()
+    {
+        $response = $this->fetchAccessToken();
+        $accessToken = $response['body']['access_token'];
+        $this->success($accessToken);
+
+        return $response;
     }
 
     /**
@@ -182,13 +161,15 @@ class BitbucketCommand extends Command
      */
     public function fetchAccessToken()
     {
+        list($consumerKey, $consumerSecret) = $this->checkEnvs('BB_CONSUMER_KEY', 'BB_CONSUMER_SECRET');
+
         $this->setEndpoint('https://bitbucket.org/site');
         $this->setContentType('application/x-www-form-urlencoded');
-        $this->setUsernameAndPassword(getenv('BB_CONSUMER_KEY'), getenv('BB_CONSUMER_SECRET'));
+        $this->setUsernameAndPassword($consumerKey, $consumerSecret);
         $response = $this->fetchUrl('oauth2/access_token/', 'POST', ['grant_type' => 'client_credentials']);
 
         if ($response['status'] !== 200) {
-            throw new \Exception(var_export($response['body'], 1), 1);
+            throw new \Exception(var_export($response['body'], 1), $response['status']);
         }
 
         return $response;
