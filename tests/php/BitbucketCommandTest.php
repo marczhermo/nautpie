@@ -56,6 +56,7 @@ final class BitbucketCommandTest extends TestCase
             'environment' => '[Optional] Stack environment',
             'title' => '[Optional] Deployment title',
             'summary' => '[Optional] Deployment summary',
+            'tag' => '[Optional] Deployment tag',
             'bypass_and_start' => '[Optional] Deployment bypass and start',
             'deploy_id' => '[Optional] Deployment ID',
             'should_wait' => '[Optional] Wait for deployment to finish',
@@ -75,7 +76,7 @@ final class BitbucketCommandTest extends TestCase
     {
         $command = $this->command;
         $data = $command->resetCurlData();
-        $expectedReturnedData = ['name' => 'COMMIT_HASH'];
+        $expectedReturnedData = ['name' => 'v1.2.34'];
         $expectedResponse = [
             'status' => 201,
             'reason' => null,
@@ -90,6 +91,7 @@ final class BitbucketCommandTest extends TestCase
                 'command' => $command->getName(),
                 'action' => 'CreateTag',
                 '--commit' => 'COMMIT_HASH_REQUIRES_40_CHARS_1234567890',
+                '--tag' => 'v1.2.34'
             ]
         );
 

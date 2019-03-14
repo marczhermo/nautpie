@@ -24,6 +24,7 @@ class BitbucketCommand extends Command
         'environment' => '[Optional] Stack environment',
         'title' => '[Optional] Deployment title',
         'summary' => '[Optional] Deployment summary',
+        'tag' => '[Optional] Deployment tag',
         'bypass_and_start' => '[Optional] Deployment bypass and start',
         'deploy_id' => '[Optional] Deployment ID',
         'should_wait' => '[Optional] Wait for deployment to finish',
@@ -121,7 +122,7 @@ class BitbucketCommand extends Command
 
     public function doCreateTag()
     {
-        list($commit) = $this->checkRequiredOptions('commit');
+        list($commit, $tag) = $this->checkRequiredOptions('commit', 'tag');
         list($repoOwner, $repoSlug) = $this->checkEnvs(
             'BITBUCKET_REPO_OWNER',
             'BITBUCKET_REPO_SLUG'
@@ -133,8 +134,13 @@ class BitbucketCommand extends Command
             $repoSlug
         );
 
+        $pos = strrpos($tag, $commit);
+        if ($pos !== false) {
+            $tag = substr($tag, 0, 7 + $pos);
+        }
+
         $payload = [
-            'name' => 'release-rc-' . $commit,
+            'name' => $tag,
             'target' => ['hash' => $commit],
         ];
 
