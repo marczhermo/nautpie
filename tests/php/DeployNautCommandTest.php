@@ -79,8 +79,8 @@ final class DeployNautCommandTest extends TestCase
 
         // the output of the command in the console
         $output = $commandTester->getDisplay();
-
-        $this->assertContains('[Action:Success] Response successful.', $output);
+        $response = json_decode($commandTester->getDisplay(), 1);
+        $this->assertEquals('"[Action:Success] Response successful."', trim($output));
     }
 
     public function testSampleFail()
@@ -94,9 +94,11 @@ final class DeployNautCommandTest extends TestCase
         ]);
 
         // the output of the command in the console
-        $output = $commandTester->getDisplay();
+        $response = json_decode($commandTester->getDisplay(), 1);
 
-        $this->assertContains('[Action:Fail] Has failed.', $output);
+        $this->assertEquals(1, $response['status']);
+        $this->assertEquals('Bad Request', $response['reason']);
+        $this->assertEquals('"[Action:Fail] Has failed."', $response['body']);
     }
 
     public function testCurlFetch()
@@ -109,14 +111,13 @@ final class DeployNautCommandTest extends TestCase
                 'now' => '2017-05-09 11:57:00',
             ],
         ];
+        $expectedResponse = [
+            'status' => 200,
+            'reason' => 'OK',
+            'body' => json_encode($expectedReturnedData),
+        ];
 
-        $handler = new MockHandler(
-            [
-                'status' => 200,
-                'reason' => 'OK',
-                'body' => json_encode($expectedReturnedData),
-            ]
-        );
+        $handler = new MockHandler($expectedResponse);
         $command->setHandler($handler);
         $commandTester = new CommandTester($command);
         $commandTester->execute(
@@ -128,22 +129,14 @@ final class DeployNautCommandTest extends TestCase
         );
 
         // the output of the command in the console
-        $output = $commandTester->getDisplay();
-        fwrite(STDERR, print_r(['testCurlFetch', var_export($output, 1)], true));
-        // $this->assertContains('Sending request with: /naut/meta', $output);
-
-        // $response = $command->fetchUrl('meta');
-
-        // $this->assertSame(200, $response['status']);
-        // $this->assertSame([], $response['headers']);
-        // $this->assertSame($expectedReturnedData, $response['body']);
+        $response = json_decode($commandTester->getDisplay(), 1);
+        $this->assertEquals(200, $response['status']);
+        $this->assertEquals('OK', $response['reason']);
+        $this->assertEquals($expectedReturnedData, $response['body']);
     }
 
-    public function testBadCurlFetch()
+    public function testBadResponseCurlFetch()
     {
-        $this->expectException(\Exception::class);
-        $this->expectExceptionCode(400);
-
         $command = $this->command;
         $data = $command->resetCurlData();
         $expectedReturnedData = [
@@ -152,14 +145,13 @@ final class DeployNautCommandTest extends TestCase
                 'title' => 'ref_type "" given but this is not supported',
             ]],
         ];
+        $expectedResponse = [
+            'status' => 400,
+            'reason' => 'Bad Request',
+            'body' => json_encode($expectedReturnedData),
+        ];
 
-        $handler = new MockHandler(
-            [
-                'status' => 400,
-                'reason' => 'Bad Request',
-                'body' => json_encode($expectedReturnedData),
-            ]
-        );
+        $handler = new MockHandler($expectedResponse);
         $command->setHandler($handler);
         $commandTester = new CommandTester($command);
         $commandTester->execute(
@@ -171,11 +163,152 @@ final class DeployNautCommandTest extends TestCase
         );
 
         // the output of the command in the console
-        $output = $commandTester->getDisplay();
-        fwrite(STDERR, print_r(['testBadCurlFetch', var_export($output, 1)], true));
-        // $this->assertContains('Sending request with: /naut/meta', $output);
-        // $this->assertContains(json_encode($expectedReturnedData), $output);
+        $response = json_decode($commandTester->getDisplay(), 1);
+        $this->assertEquals(400, $response['status']);
+        $this->assertEquals('Bad Request', $response['reason']);
+        $this->assertEquals($expectedReturnedData, $response['body']);
+    }
 
-        // $response = $command->fetchUrl('meta');
+    public function testExceptionThrownOnAction()
+    {
+        $this->expectException(\Exception::class);
+        $this->expectExceptionCode(1);
+
+        $command = $this->command;
+        $data = $command->resetCurlData();
+
+        $expectedReturnedData = '[Missing] Action or End Point';
+        $expectedResponse = [
+            'status' => 400,
+            'reason' => 'Bad Request',
+            'body' => sprintf('"%s"', $expectedReturnedData),
+        ];
+
+        $handler = new MockHandler($expectedResponse);
+        $command->setHandler($handler);
+        $commandTester = new CommandTester($command);
+        $commandTester->execute(
+            [
+                'command' => $command->getName(),
+                'action' => '',
+                '--url' => 'meta',
+            ]
+        );
+
+        // the output of the command in the console
+        $response = json_decode($commandTester->getDisplay(), 1);
+        $this->assertEquals(1, $response['status']);
+        $this->assertEquals('Bad Request', $response['reason']);
+        $this->assertEquals(sprintf('"%s"', $expectedReturnedData), $response['body']);
+
+        // This will throw and \Exception
+        $this->command->doSampleFail();
+    }
+
+    public function testGetDeployments()
+    {
+        $command = $this->command;
+        $data = $command->resetCurlData();
+        $expectedReturnedData = file_get_contents(dirname(__FILE__) . '/../fixtures/getDeployments.json');
+        $expectedResponse = [
+            'status' => 200,
+            'reason' => null,
+            'body' => $expectedReturnedData,
+        ];
+
+        $handler = new MockHandler($expectedResponse);
+        $command->setHandler($handler);
+        $commandTester = new CommandTester($command);
+        $commandTester->execute(
+            [
+                'command' => $command->getName(),
+                'action' => 'getDeployments',
+                '--stack' => 'stack',
+                '--environment' => 'uat',
+            ]
+        );
+
+        // the output of the command in the console
+        $response = json_decode($commandTester->getDisplay(), 1);
+
+        $this->assertEquals(200, $response['status']);
+        $this->assertEquals(null, $response['reason']);
+        $this->assertEquals(json_decode($expectedReturnedData, 1), $response['body']);
+    }
+
+    public function testLastDeployment()
+    {
+        $command = $this->command;
+        $data = $command->resetCurlData();
+        $expectedReturnedData = file_get_contents(dirname(__FILE__) . '/../fixtures/getDeployments.json');
+        $expectedResponse = [
+            'status' => 200,
+            'reason' => null,
+            'body' => $expectedReturnedData,
+        ];
+
+        $handler = new MockHandler($expectedResponse);
+        $command->setHandler($handler);
+        $commandTester = new CommandTester($command);
+        $commandTester->execute(
+            [
+                'command' => $command->getName(),
+                'action' => 'lastDeployment',
+                '--stack' => 'stack',
+                '--environment' => 'uat',
+            ]
+        );
+
+        // the output of the command in the console
+        $response = json_decode($commandTester->getDisplay(), 1);
+
+        $this->assertEquals(200, $response['status']);
+        $this->assertEquals(null, $response['reason']);
+
+        $first = json_decode($expectedReturnedData, 1);
+
+        $this->assertEquals(reset($first['data']), $response['body']);
+    }
+
+    public function testCreateDeployment()
+    {
+        $command = $this->command;
+        $data = $command->resetCurlData();
+        $expectedReturnedData = [
+            'data' => [
+                'type' => 'deployments',
+                'id' => '64040',
+                'attributes' => [
+                    'id' => 640640,
+                    'title' => '[CD:Package] COMMIT_HASH'
+                ]
+            ],
+        ];
+        $expectedResponse = [
+            'status' => 201,
+            'reason' => 'Created',
+            'body' => json_encode($expectedReturnedData),
+        ];
+
+        $handler = new MockHandler($expectedResponse);
+        $command->setHandler($handler);
+        $commandTester = new CommandTester($command);
+        $commandTester->execute(
+            [
+                'command' => $command->getName(),
+                'action' => 'createDeployment',
+                '--stack' => 'stack',
+                '--environment' => 'uat',
+                '--ref_type' => 'branch',
+                '--ref' => 'develop',
+            ]
+        );
+
+        // the output of the command in the console
+        $response = json_decode($commandTester->getDisplay(), 1);
+
+        $this->assertEquals(201, $response['status']);
+        $this->assertEquals('Created', $response['reason']);
+        $this->assertEquals($expectedReturnedData, $response['body']);
     }
 }

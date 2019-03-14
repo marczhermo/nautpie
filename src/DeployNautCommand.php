@@ -56,30 +56,37 @@ class DeployNautCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $action = $input->getArgument('action');
-        $endPoint = $this->endPoint ?: getenv('NAUT_ENDPOINT');
-
-        if (!$action || !$endPoint) {
-            // white text on a red background
-            $output->writeln('<error> Missing Action or End Point </error>');
-            // Greater than zero is an error
-            return 1;
-        }
-
-        $this->setEndpoint($endPoint);
-        list($dashUser, $dashToken) = $this->checkEnvs('DASH_USER', 'DASH_TOKEN');
-        $this->setUsernameAndPassword($dashUser, $dashToken);
-
         try {
+            $action = $input->getArgument('action');
+            $endPoint = $this->endPoint ?: getenv('NAUT_ENDPOINT');
+
+            if (!$action || !$endPoint) {
+                throw new \Exception('[Missing] Action or End Point', 1);
+            }
+
+            $this->setEndpoint($endPoint);
+            list($dashUser, $dashToken) = $this->checkEnvs('DASH_USER', 'DASH_TOKEN');
+            $this->setUsernameAndPassword($dashUser, $dashToken);
+
             $response = $this->executeAction($action);
-            fwrite(STDERR, print_r(['response', $response], true));
         } catch (\Exception $e) {
-            $this->output->writeln('<error> ' . $e->getMessage() . ' </error>');
+            $body = json_decode($e->getMessage(), 1);
+            if (is_null($body)) {
+                $this->warning($e->getMessage());
+                $body = sprintf('"%s"', $e->getMessage());
+            }
+            $response = [
+                'status' => $e->getCode() ?: 1,
+                'reason' => 'Bad Request',
+                'body'=> $body,
+            ];
+            $output->writeln(json_encode($response));
+
             // Greater than zero is an error
             return 1;
         }
 
-        $output->writeln(json_encode($response, JSON_PRETTY_PRINT));
+        $output->writeln(json_encode($response));
     }
 
     /**
@@ -231,7 +238,11 @@ class DeployNautCommand extends Command
             }
         );
 
-        return array_values($deployments);
+        return [
+            'status' => $response['status'],
+            'reason' => $response['reason'],
+            'body' => ['data' => array_values($deployments)],
+        ];
     }
 
     /**
@@ -241,9 +252,10 @@ class DeployNautCommand extends Command
      */
     public function doLastDeployment()
     {
-        $deployments = $this->doGetDeployments();
+        $response = $this->doGetDeployments();
+        $response['body'] = reset($response['body']['data']);
 
-        return reset($deployments);
+        return $response;
     }
 
     /**
@@ -320,7 +332,10 @@ class DeployNautCommand extends Command
         $response = $this->fetchUrl($relativeUrl);
 
         if ($response['status'] !== 200) {
-            throw new \Exception(var_export($response['body'], 1), 1);
+            $warning = 'Invalid status code.';
+            $this->warning($warning);
+            $this->warning(var_export($response['body'], 1));
+            throw new \Exception($warning, 1);
         }
 
         return $response;

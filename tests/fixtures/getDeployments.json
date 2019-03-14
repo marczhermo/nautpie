@@ -1,0 +1,50 @@
+{
+  "data": [
+    {
+      "type": "deployments",
+      "id": "64989",
+      "attributes": {
+        "id": 64989,
+        "title": "Release 4.12.0",
+        "summary": null,
+        "ref_type": "branch",
+        "ref_name": "release/4.12.0",
+        "rejected_reason": "",
+        "tags": [],
+        "deployment_type": "code-only",
+        "deployment_estimate": "2",
+        "sha": "3b98c5ede3529af757cb07089c4315b2b4f2fe0d",
+        "short_sha": "3b98c5e",
+        "commit_subject": "Merge pull request #231",
+        "commit_message": "Merge pull request #231",
+        "state": "Completed",
+        "schedule_start_unix": 0,
+        "schedule_end_unix": 0,
+        "is_full_deployment": false
+      }
+    },
+    {
+      "type": "deployments",
+      "id": "64962",
+      "attributes": {
+        "id": 64962,
+        "title": "Release 4.11.0",
+        "summary": "WP-123 Create \nWP-456 Read\nWP-789 Update",
+        "ref_type": "tag",
+        "ref_name": "4.11.0",
+        "rejected_reason": "",
+        "tags": [
+          "4.11.0"
+        ],
+        "deployment_type": "code-only",
+        "deployment_estimate": "2",
+        "sha": "bf4c5c5bea1f8a73160aa45a54ad56da88adf666",
+        "short_sha": "bf4c5c5",
+        "commit_subject": "Merge pull request #230",
+        "commit_message": "Merge pull request #230",
+        "state": "Completed",
+        "is_full_deployment": false
+      }
+    }
+  ]
+}

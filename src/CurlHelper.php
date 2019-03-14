@@ -146,7 +146,6 @@ trait CurlHelper
         }
 
         $this->warning('Sending request with: ' . $uri);
-        // $this->message($data);
 
         $client = $this->handler;
         $response = $client($data);
@@ -154,11 +153,11 @@ trait CurlHelper
         $contents = $stream->getContents();
         $response['body'] = json_decode($contents, true);
 
-        if ($this->isErrorResponse((int) $response['status'])) {
-            throw new \Exception('Response: ' . $contents, (int) $response['status']);
-        }
-
-        return $response['body'];
+        return [
+            'status' => $response['status'],
+            'reason' => $response['reason'],
+            'body'=> $response['body'],
+        ];
     }
 
     public function isErrorResponse($statusCode)
