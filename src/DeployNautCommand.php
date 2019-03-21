@@ -95,7 +95,7 @@ class DeployNautCommand extends Command
 
     /**
      * Creates a deployment on Cloud Platform
-     * @return string JSON response
+     * @return array JSON response
      */
     public function doCreateDeployment()
     {
@@ -151,7 +151,7 @@ class DeployNautCommand extends Command
 
     /**
      * This is similar on Cloud Platform which executes a git fetch.
-     * @return string JSON Response
+     * @return array JSON Response
      */
     public function doGitFetch()
     {
@@ -194,12 +194,14 @@ class DeployNautCommand extends Command
                 $isWaiting = false;
             }
         } while ($isWaiting);
+
+        return $response;
     }
 
     /**
      * Fetches the Cloud Platform of a collection of deployments over the last year.
      * Sorted from the latest deployment first
-     * @return string JSON Response
+     * @return array JSON Response
      */
     public function doGetDeployments()
     {
@@ -252,7 +254,7 @@ class DeployNautCommand extends Command
     /**
      * Get the latest deployment
      * Uses doGetDeployments and return the first record
-     * @return string JSON Response
+     * @return array JSON Response
      */
     public function doLastDeployment()
     {

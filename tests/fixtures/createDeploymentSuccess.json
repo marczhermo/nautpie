@@ -1,0 +1,40 @@
+{
+  "status": 201,
+  "reason": "Created",
+  "body": {
+    "data": {
+      "type": "deployments",
+      "id": "64040",
+      "attributes": {
+        "id": 64040,
+        "date_created_unix": 1553053258,
+        "date_started_unix": 1553053258,
+        "date_requested_unix": 0,
+        "date_approved_unix": 1553053258,
+        "date_updated_unix": 1553053258,
+        "title": "[CD:Package] COMMIT_HASH",
+        "summary": "Branch:develop",
+        "ref_type": "package",
+        "ref_name": null,
+        "rejected_reason": "",
+        "deployment_type": "code-only",
+        "deployment_estimate": "2",
+        "sha": null,
+        "short_sha": "",
+        "package_link": "https://api.bitbucket.org/2.0/repositories/repo-owner/repo-slug/downloads/COMMIT_HASH.tar.gz",
+        "package_id": 10668,
+        "commit_subject": null,
+        "commit_message": null,
+        "approver_id": "",
+        "approver": null,
+        "state": "Queued",
+        "is_current_build": false,
+        "dirty": false,
+        "schedule_start_unix": 0,
+        "schedule_end_unix": 0,
+        "locked_by": null,
+        "is_full_deployment": false
+      }
+    }
+  }
+}
