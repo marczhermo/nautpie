@@ -16,7 +16,13 @@
 
 Create a deployment with Git SHA
 ```
-./nautpie.phar deploy:naut createDeployment --stack=example --environment=teststack1 --ref=40char-sha --ref_type=sha --bypass_and_start=true
+./nautpie.phar deploy:naut createDeployment \
+--stack=example \
+--environment=teststack1 \
+--ref=40char-sha \
+--ref_type=sha \
+--bypass_and_start=true \
+--should_wait=true
 ```
 
 Calls Git Fetch
@@ -36,3 +42,8 @@ Last Deployment Details
 ```
 ./nautpie.phar deploy:naut lastDeployment --stack=example --environment=teststack1
 ```
+
+## Reference
+- Deploynaut API documentation - https://platform.silverstripe.com/static/api.html
+- Blog post (Hayden) using API for deployments - https://www.silverstripe.org/blog/automating-deployments-to-the-silverstripe-platform-with-gitlab/
+- Blog post (Jake) using API for deployments - https://www.silverstripe.org/blog/introducing-a-new-approach-to-deployments/

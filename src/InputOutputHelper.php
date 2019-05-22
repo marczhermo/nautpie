@@ -80,6 +80,52 @@ trait InputOutputHelper
         );
     }
 
+    /**
+     * Gets the display returned by the last execution of the command.
+     *
+     * @param bool $normalize Whether to normalize end of lines to \n or not
+     *
+     * @return string The display
+     */
+    public function getDisplay($normalize = false)
+    {
+        $stream = $this->output->getStream();
+        rewind($stream);
+
+        $display = stream_get_contents($stream);
+
+        if ($normalize) {
+            $display = str_replace(PHP_EOL, "\n", $display);
+        }
+
+        $displays = array_filter(explode(PHP_EOL, $display));
+        $lastDisplay = end($displays);
+
+        return $lastDisplay;
+    }
+
+    /**
+     * Run other commands
+     * @see BitbucketCommand::doDeployPackage() for sample implementation
+     * @param  string $name A command name or a command alias
+     * @param  ArrayInput $arrayInput
+     * @return array JSON response string
+     */
+    public function runCommand($name, $arrayInput)
+    {
+        $command = $this->getApplication()->find($name);
+        $command->resetCurlData();
+        $exitCode = (int) $command->run($arrayInput, $this->output);
+        $contents = $command->getDisplay();
+        $response = json_decode($contents, true);
+
+        if ($exitCode) {
+            throw new \Exception($contents, (int) $response['status']);
+        }
+
+        return $response;
+    }
+
     public function checkRequiredOptions()
     {
         $args = [];

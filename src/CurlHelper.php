@@ -153,6 +153,10 @@ trait CurlHelper
         $contents = $stream->getContents();
         $response['body'] = json_decode($contents, true);
 
+        if ($this->isErrorResponse((int) $response['status'])) {
+            throw new \Exception($contents, (int) $response['status']);
+        }
+
         return [
             'status' => $response['status'],
             'reason' => $response['reason'],
@@ -160,10 +164,8 @@ trait CurlHelper
         ];
     }
 
-    public function isErrorResponse($statusCode)
+    public function isErrorResponse($statusCode = 0)
     {
-        $statusCode = $statusCode ?: 0;
-
         return $statusCode < 200 || $statusCode > 399;
     }
 

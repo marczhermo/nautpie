@@ -54,6 +54,9 @@ class BitbucketCommand extends Command
             $response = $this->executeAction($action);
         } catch (\Exception $e) {
             $body = json_decode($e->getMessage(), 1);
+            if (isset($body['body'])) {
+                $body = $body['body'];
+            }
 
             if (is_null($body)) {
                 $this->warning($e->getMessage());
@@ -90,7 +93,13 @@ class BitbucketCommand extends Command
             'BITBUCKET_BRANCH'
         );
 
-        $tokenResponse = $this->doCreateAccessToken();
+        // $tokenResponse = $this->doCreateAccessToken();
+        // $accessToken = $tokenResponse['body']['access_token'];
+        $tokenDeploymentInput = new ArrayInput([
+            'command' => 'ci:bitbucket',
+            'action' => 'createAccessToken',
+        ]);
+        $tokenResponse = $this->runCommand('ci:bitbucket', $tokenDeploymentInput);
         $accessToken = $tokenResponse['body']['access_token'];
 
         $downloadLink = sprintf(
@@ -102,9 +111,7 @@ class BitbucketCommand extends Command
             $accessToken
         );
 
-        $command = $this->getApplication()->find('deploy:naut');
-        $command->resetCurlData();
-        $createDeploymentInput = new ArrayInput([
+        $deploymentInput = new ArrayInput([
             'command' => 'deploy:naut',
             'action' => 'createDeployment',
             '--stack' => $stack,
@@ -117,7 +124,7 @@ class BitbucketCommand extends Command
             '--should_wait' => $this->getOption('should_wait'),
         ]);
 
-        return $command->run($createDeploymentInput, $this->output);
+        return $this->runCommand('deploy:naut', $deploymentInput);
     }
 
     public function doCreateTag()

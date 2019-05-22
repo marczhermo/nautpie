@@ -1,0 +1,12 @@
+{
+  "status": 400,
+  "reason": "Bad Request",
+  "body": {
+    "errors": [
+      {
+        "status": "400",
+        "title": "The provided package has a problem: Unable to read files in selected package, or it is empty. Refusing to proceed."
+      }
+    ]
+  }
+}

@@ -270,23 +270,15 @@ final class DeployNautCommandTest extends TestCase
         $this->assertEquals(reset($first['data']), $response['body']);
     }
 
-    public function testCreateDeployment()
+    public function testCreateDeploymentSuccess()
     {
         $command = $this->command;
         $data = $command->resetCurlData();
-        $expectedReturnedData = [
-            'data' => [
-                'type' => 'deployments',
-                'id' => '64040',
-                'attributes' => [
-                    'id' => 640640,
-                    'title' => '[CD:Package] COMMIT_HASH'
-                ]
-            ],
-        ];
+        $jsonResponse = json_decode(file_get_contents(dirname(__FILE__) . '/../fixtures/createDeploymentSuccess.json'), 1);
+        $expectedReturnedData = $jsonResponse['body'];
         $expectedResponse = [
-            'status' => 201,
-            'reason' => 'Created',
+            'status' => $jsonResponse['status'],
+            'reason' => $jsonResponse['reason'],
             'body' => json_encode($expectedReturnedData),
         ];
 
@@ -305,10 +297,44 @@ final class DeployNautCommandTest extends TestCase
         );
 
         // the output of the command in the console
-        $response = json_decode($commandTester->getDisplay(), 1);
+        $response = json_decode($commandTester->getDisplay(), true);
 
         $this->assertEquals(201, $response['status']);
         $this->assertEquals('Created', $response['reason']);
+        $this->assertEquals($expectedReturnedData, $response['body']);
+    }
+
+    public function testCreateDeploymentGoneBad()
+    {
+        $command = $this->command;
+        $data = $command->resetCurlData();
+        $jsonResponse = json_decode(file_get_contents(dirname(__FILE__) . '/../fixtures/createDeploymentError.json'), 1);
+        $expectedReturnedData = $jsonResponse['body'];
+        $expectedResponse = [
+            'status' => $jsonResponse['status'],
+            'reason' => $jsonResponse['reason'],
+            'body' => json_encode($expectedReturnedData),
+        ];
+
+        $handler = new MockHandler($expectedResponse);
+        $command->setHandler($handler);
+        $commandTester = new CommandTester($command);
+        $commandTester->execute(
+            [
+                'command' => $command->getName(),
+                'action' => 'createDeployment',
+                '--stack' => 'stack',
+                '--environment' => 'uat',
+                '--ref_type' => 'branch',
+                '--ref' => 'develop',
+            ]
+        );
+
+        // the output of the command in the console
+        $response = json_decode($commandTester->getDisplay(), true);
+
+        $this->assertEquals(400, $response['status']);
+        $this->assertEquals('Bad Request', $response['reason']);
         $this->assertEquals($expectedReturnedData, $response['body']);
     }
 }

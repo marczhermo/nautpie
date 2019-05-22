@@ -137,4 +137,73 @@ final class BitbucketCommandTest extends TestCase
         $this->assertEquals(null, $response['reason']);
         $this->assertEquals($expectedReturnedData, $response['body']);
     }
+
+    public function testDeployPackageSuccess()
+    {
+        $tokenCommand = new BitbucketCommand();
+        $tokenCommand->resetCurlData();
+        $expectedTokendData = [
+            'access_token' => 'R2uy6EHAKD7K1q3IG9FHf1B4hq9IprTHiLsT0HnA=',
+            'scopes' => 'repository',
+            'expires_in' => 7200,
+            'refresh_token' => 'Sdyr6UewYGxsmgDH78',
+            'token_type' => 'bearer',
+        ];
+        $expectedResponse = [
+            'status' => 200,
+            'reason' => null,
+            'body' => json_encode($expectedTokendData),
+        ];
+
+        $tokenHandler = new MockHandler($expectedResponse);
+        $tokenCommand->setHandler($tokenHandler);
+        $this->app->add($tokenCommand);
+
+        $jsonResponse = json_decode(file_get_contents(dirname(__FILE__) . '/../fixtures/createDeploymentSuccess.json'), 1);
+        $expectedDeployData = $jsonResponse['body'];
+        $expectedDeployResponse = [
+            'status' => $jsonResponse['status'],
+            'reason' => $jsonResponse['reason'],
+            'body' => json_encode($expectedDeployData),
+        ];
+
+        $deployCommand = new DeployNautCommand();
+        $deployCommand->resetCurlData();
+        $deployHandler = new MockHandler($expectedDeployResponse);
+        $deployCommand->setHandler($deployHandler);
+        $this->app->add($deployCommand);
+
+        $command = $this->command;
+        $command->resetCurlData();
+        $handler = new MockHandler([]);
+        $commandTester = new CommandTester($command);
+        $exitCode = $commandTester->execute(
+            [
+                'command' => $command->getName(),
+                'action' => 'DeployPackage',
+                '--commit' => 'COMMIT_HASH_40_REQUIRED_CHARS_1234567890',
+                '--stack' => 'stack',
+                '--environment' => 'uat',
+            ]
+        );
+
+        $displays = array_filter(explode(PHP_EOL, $commandTester->getDisplay()));
+        $this->assertEquals(0, $exitCode, 'Must be Zero for CLI success');
+
+        $tokenResponse = json_decode($displays[0], true);
+        $deployResponse = json_decode($displays[1], true);
+        $commandResponse = json_decode($displays[2], true);
+
+        $this->assertEquals(200, $tokenResponse['status']);
+        $this->assertEquals(null, $tokenResponse['reason']);
+        $this->assertEquals($expectedTokendData, $tokenResponse['body']);
+
+        $this->assertEquals(201, $deployResponse['status']);
+        $this->assertEquals('Created', $deployResponse['reason']);
+        $this->assertEquals($expectedDeployData, $deployResponse['body']);
+
+        $this->assertEquals(201, $commandResponse['status']);
+        $this->assertEquals('Created', $commandResponse['reason']);
+        $this->assertEquals($expectedDeployData, $commandResponse['body']);
+    }
 }
