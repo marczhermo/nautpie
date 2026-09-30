@@ -1,49 +1,71 @@
-# NautPie: DeployNaut API Console Client
+# NautPie (Rust)
 
-[![Build Status](https://travis-ci.org/marczhermo/nautpie.svg?branch=master)](https://travis-ci.org/marczhermo/nautpie)
+A single-binary Rust CLI for talking to the DeployNaut API and Bitbucket Pipelines.
+Behaviour-compatible port of the original `nautpie.phar` (PHP/Symfony).
 
-**Goal**: Provides unified way of communicating with SilverStripe Platform DeployNaut API on the command line.
+## Install
 
-**Usage**: This is intended to be used for CI/CD or Continuous Integration and Delivery.
-
-**Supported Clients**: Bitbucket Pipelines
-
-**To Do**: CircleCI and GitLab
-
-
-
-## DeployNaut API
-
-Create a deployment with Git SHA
-```
-./nautpie.phar deploy:naut createDeployment \
---stack=example \
---environment=teststack1 \
---ref=40char-sha \
---ref_type=sha \
---bypass_and_start=true \
---should_wait=true
+```sh
+cargo build --release
+# binary at target/release/nautpie
 ```
 
-Calls Git Fetch
+## Usage
 
-```
-./nautpie.phar deploy:naut gitFetch --stack=example
+```sh
+nautpie --help
+
+# DeployNaut actions (require NAUT_ENDPOINT, DASH_USER, DASH_TOKEN)
+nautpie deploy:naut createDeployment \
+    --stack=example --environment=uat \
+    --ref=40char-sha --ref_type=sha \
+    --bypass_and_start=true --should_wait=true
+
+nautpie deploy:naut gitFetch --stack=example
+nautpie deploy:naut getDeployments --stack=example --environment=uat
+nautpie deploy:naut lastDeployment --stack=example --environment=uat
+nautpie deploy:naut fetch --url=meta
+
+# Bitbucket actions (require BB_ENDPOINT, BB_AUTH_STRING, etc.)
+nautpie ci:bitbucket createAccessToken
+nautpie ci:bitbucket createTag --commit=40char-sha --tag=v1.2.3
+nautpie ci:bitbucket deployPackage --stack=example --environment=uat --commit=40char-sha
+
+# Sample (smoke-test) actions — no network calls
+nautpie deploy:naut sampleSuccess
+nautpie deploy:naut sampleFail
 ```
 
-Collection of Previous Deployments
+## Output
 
-```
-./nautpie.phar deploy:naut getDeployments --stack=example --environment=teststack1
-```
+Every command prints exactly one JSON line on stdout:
 
-Last Deployment Details
-
-```
-./nautpie.phar deploy:naut lastDeployment --stack=example --environment=teststack1
+```json
+{"status":200,"reason":"OK","body":...}
 ```
 
-## Reference
-- Deploynaut API documentation - https://platform.silverstripe.com/static/api.html
-- Blog post (Hayden) using API for deployments - https://www.silverstripe.org/blog/automating-deployments-to-the-silverstripe-platform-with-gitlab/
-- Blog post (Jake) using API for deployments - https://www.silverstripe.org/blog/introducing-a-new-approach-to-deployments/
+Errors are reported as:
+
+```json
+{"status":<code>,"reason":"Bad Request","body":"<message>"}
+```
+
+Status `0` means success; non-zero indicates a failed action.
+
+## Environment variables
+
+| Variable | Required by |
+|---|---|
+| `NAUT_ENDPOINT` | `deploy:naut` |
+| `DASH_USER`, `DASH_TOKEN` | `deploy:naut` |
+| `BB_ENDPOINT` | `ci:bitbucket` |
+| `BB_AUTH_STRING` | `ci:bitbucket` |
+| `BB_CONSUMER_KEY`, `BB_CONSUMER_SECRET` | `ci:bitbucket createAccessToken` |
+| `BITBUCKET_REPO_OWNER`, `BITBUCKET_REPO_SLUG` | `ci:bitbucket createTag`, `deployPackage` |
+| `BITBUCKET_BRANCH` | `ci:bitbucket deployPackage` |
+
+A `.env` file in the current working directory is loaded automatically.
+
+## License
+
+MIT. See `LICENSE.txt`.

@@ -4,3 +4,8 @@
 .env
 nautpie.phar
 /bin
+
+# Rust
+/target
+**/*.rs.bk
+Cargo.lock.bak
