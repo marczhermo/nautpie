@@ -10,11 +10,16 @@ use super::Io;
 use crate::error::ApiResponse;
 use crate::options::Options;
 
+/// Production [`Io`] implementation. Writes warnings/successes/messages to
+/// stderr and the JSON envelope to stdout.
 pub struct StderrIo {
+    /// Options bag stashed via [`Io::set_options`]. `None` until
+    /// `set_options` is called.
     opts: Option<Options>,
 }
 
 impl StderrIo {
+    /// Create a new `StderrIo` with no options set.
     pub fn new() -> Self {
         Self { opts: None }
     }

@@ -77,12 +77,16 @@ pub fn normalise_action(raw: &str) -> String {
     version,
     about = "DeployNaut / Bitbucket Pipelines deployment client"
 )]
+/// Top-level CLI definition. Parsed by `clap` via `Cli::parse()`.
 pub struct Cli {
+    /// The subcommand the user invoked. One of `DeployNaut` or `Bitbucket`.
     #[command(subcommand)]
     pub command: CommandKind,
 }
 
 #[derive(Debug, Subcommand)]
+/// The two CLI subcommands. Each variant holds the parsed argument struct
+/// for that subcommand.
 pub enum CommandKind {
     /// DeployNaut API actions.
     #[command(name = "deploy:naut")]
@@ -94,8 +98,13 @@ pub enum CommandKind {
 }
 
 /// Arguments shared by both subcommands.
+///
+/// Currently aspirational: both `DeployNautArgs` and `BitbucketArgs`
+/// implement this trait so generic code can ask either for its action
+/// name. The action functions themselves read concrete types today.
 #[allow(dead_code)]
 pub trait SharedArgs {
+    /// Return the action name (e.g. `"sampleSuccess"`).
     fn action(&self) -> &str;
 }
 

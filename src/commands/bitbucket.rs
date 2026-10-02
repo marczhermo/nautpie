@@ -25,6 +25,7 @@ use crate::options::Options;
 
 const BITBUCKET_OAUTH_DEFAULT: &str = "https://bitbucket.org/site";
 
+/// Tag type for the `ci:bitbucket` subcommand. Implements [`Command`].
 pub struct Bitbucket;
 
 impl Command for Bitbucket {
@@ -50,7 +51,26 @@ impl Command for Bitbucket {
     }
 }
 
-/// `ci:bitbucket createAccessToken`.
+/// `ci:bitbucket createAccessToken` — exchange Bitbucket OAuth credentials for a bearer token.
+///
+/// Reads `BB_CONSUMER_KEY` and `BB_CONSUMER_SECRET` from the environment, sets
+/// them as HTTP basic-auth on the client, then POSTs
+/// `grant_type=client_credentials` to Bitbucket's OAuth endpoint. The endpoint
+/// defaults to `https://bitbucket.org/site` but can be overridden via
+/// `BB_OAUTH_ENDPOINT` (used by tests to point at a `wiremock` server).
+///
+/// Returns the parsed JSON response on success (typically
+/// `{ "access_token": "...", "scopes": "...", "expires_in": 3600 }`).
+///
+/// # Arguments
+///
+/// * `_opts` - Unused; kept for symmetry with other action functions.
+/// * `http` - The HTTP client to configure and send the request through.
+///
+/// # Errors
+///
+/// * [`Error::MissingEnv`] - `BB_CONSUMER_KEY` or `BB_CONSUMER_SECRET` is unset.
+/// * [`Error::HttpStatus`] - the server returned a non-200 status.
 pub fn do_create_access_token(
     _opts: &Options,
     http: &mut dyn HttpClient,
@@ -90,7 +110,28 @@ pub fn do_create_access_token(
     })
 }
 
-/// `ci:bitbucket createTag`.
+/// `ci:bitbucket createTag` — create a tag reference on a Bitbucket repository.
+///
+/// POSTs `{ "name": <tag>, "target": { "hash": <commit> } }` to
+/// `repositories/{owner}/{slug}/refs/tags`. The tag string is **truncated**
+/// before sending: if it contains the full 40-character commit SHA, only the
+/// first 7 characters of the commit after the substring match are kept.
+/// This quirk is preserved for PHP parity (see the comment in the source).
+///
+/// Requires `BITBUCKET_REPO_OWNER` and `BITBUCKET_REPO_SLUG` env vars, plus
+/// the `commit` and `tag` options (each must be exactly 40 and non-empty
+/// respectively).
+///
+/// # Arguments
+///
+/// * `opts` - The parsed CLI options bag. Reads `commit` and `tag`.
+/// * `http` - The HTTP client.
+///
+/// # Errors
+///
+/// * [`Error::MissingOption`] - `commit` or `tag` is missing.
+/// * [`Error::Generic`] - `commit` is not exactly 40 chars.
+/// * [`Error::MissingEnv`] - `BITBUCKET_REPO_OWNER` or `BITBUCKET_REPO_SLUG` missing.
 pub fn do_create_tag(opts: &Options, http: &mut dyn HttpClient) -> Result<ApiResponse, Error> {
     let commit = opts
         .option("commit")
@@ -149,9 +190,37 @@ pub fn do_create_tag(opts: &Options, http: &mut dyn HttpClient) -> Result<ApiRes
     })
 }
 
-/// `ci:bitbucket deployPackage`. Per Decision D6, returns a single combined
-/// `ApiResponse` (the create-deployment response) rather than the PHP
-/// three-line shape.
+/// `ci:bitbucket deployPackage` — fetch a download URL and trigger a DeployNaut deployment.
+///
+/// This is the **most cross-cutting** action in the binary. It performs four
+/// steps in sequence:
+///
+/// 1. Validates that `commit` is exactly 40 chars and that `stack` and
+///    `environment` are supplied.
+/// 2. Calls [`do_create_access_token`] to obtain a temporary Bitbucket token.
+///    This mutates the HTTP client's endpoint, content type, and basic auth.
+/// 3. Builds a download URL of the form
+///    `{endpoint}/repositories/{owner}/{slug}/downloads/{commit}.tar.gz?access_token={token}`.
+/// 4. Calls [`crate::commands::deploy_naut::do_create_deployment`] with the
+///    download URL set as `ref` and `ref_type` set to `"package"`.
+///
+/// Unlike the PHP original (which printed three separate JSON lines), this
+/// function returns a **single combined** [`ApiResponse`] — the create-deployment
+/// response — per design decision D6.
+///
+/// # Arguments
+///
+/// * `opts` - The parsed CLI options bag. Reads `commit`, `stack`, `environment`.
+/// * `_io` - The output sink; not used directly but passed through to the inner deployment call.
+/// * `http` - The HTTP client.
+///
+/// # Errors
+///
+/// * [`Error::MissingOption`] - `commit`, `stack`, or `environment` is missing.
+/// * [`Error::Generic`] - `commit` is not exactly 40 chars.
+/// * [`Error::MissingEnv`] - `BITBUCKET_REPO_OWNER`, `BITBUCKET_REPO_SLUG`, or `BITBUCKET_BRANCH` missing.
+/// * [`Error::MissingEndpoint`] - `BB_ENDPOINT` is unset.
+/// * Any error propagated from [`do_create_access_token`] or [`crate::commands::deploy_naut::do_create_deployment`].
 pub fn do_deploy_package(
     opts: &Options,
     _io: &mut dyn Io,

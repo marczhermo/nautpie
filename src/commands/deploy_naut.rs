@@ -24,6 +24,7 @@ pub const DEPLOY_TIMEOUT_SECS: u64 = 1800;
 /// Git-fetch polling timeout in seconds (matches PHP const).
 pub const GIT_TIMEOUT_SECS: u64 = 120;
 
+/// Tag type for the `deploy:naut` subcommand. Implements [`Command`].
 pub struct DeployNaut;
 
 impl Command for DeployNaut {
@@ -54,7 +55,41 @@ impl Command for DeployNaut {
     }
 }
 
-/// Build an Options from the parsed clap DeployNautArgs.
+/// Build an [`Options`] bag from the parsed clap `DeployNautArgs`.
+///
+/// Every `Some(...)` field on `args` is copied into the bag under the same key.
+/// `None` fields are skipped entirely. Called once in `main.rs` after `clap`
+/// has parsed the user's command line.
+///
+/// # Arguments
+///
+/// * `args` - The clap-parsed `deploy:naut` subcommand arguments.
+///
+/// # Examples
+///
+/// ```no_run
+/// use nautpie::cli::DeployNautArgs;
+/// use nautpie::commands::deploy_naut::options_from_deploy_args;
+///
+/// let mut args = DeployNautArgs {
+///     action: "createDeployment".into(),
+///     url: None,
+///     commit: Some("abc".into()),
+///     stack: Some("example".into()),
+///     environment: Some("uat".into()),
+///     start_date: None,
+///     title: None,
+///     summary: None,
+///     redeploy: None,
+///     r#ref: None,
+///     ref_type: None,
+///     bypass_and_start: None,
+///     deploy_id: None,
+///     should_wait: None,
+/// };
+/// let opts = options_from_deploy_args(&args);
+/// assert_eq!(opts.option("stack").as_deref(), Some("example"));
+/// ```
 pub fn options_from_deploy_args(args: &crate::cli::DeployNautArgs) -> Options {
     let mut opts = Options::new();
     if let Some(v) = &args.url {
@@ -99,7 +134,15 @@ pub fn options_from_deploy_args(args: &crate::cli::DeployNautArgs) -> Options {
     opts
 }
 
-/// Build an Options from the parsed clap BitbucketArgs.
+/// Build an [`Options`] bag from the parsed clap `BitbucketArgs`.
+///
+/// Same shape as [`options_from_deploy_args`] but for the `ci:bitbucket`
+/// subcommand. Also stores the action name under the key `"action"` so
+/// `Bitbucket::run` can re-read it from the bag if needed.
+///
+/// # Arguments
+///
+/// * `args` - The clap-parsed `ci:bitbucket` subcommand arguments.
 pub fn options_from_bitbucket_args(args: &crate::cli::BitbucketArgs) -> Options {
     let mut opts = Options::new();
     opts.set("action", args.action.clone());
@@ -134,6 +177,26 @@ pub fn options_from_bitbucket_args(args: &crate::cli::BitbucketArgs) -> Options 
 }
 
 /// Apply environment defaults from `NAUT_ENDPOINT`, `DASH_USER`, `DASH_TOKEN`.
+///
+/// Reads the three required environment variables and configures the
+/// [`HttpClient`] in three ways:
+/// 1. Sets the endpoint URL on the client.
+/// 2. Resets the `Content-Type` header to `application/json` (in case a prior
+///    action set it to `application/x-www-form-urlencoded`).
+/// 3. Sets HTTP basic auth credentials via
+///    [`HttpClient::set_username_and_password`].
+///
+/// Returns the three values as `(endpoint, dash_user, dash_token)` so the
+/// caller doesn't need to re-read them.
+///
+/// # Errors
+///
+/// * [`Error::MissingEndpoint`] - `NAUT_ENDPOINT` is unset or empty.
+/// * [`Error::MissingEnv`] - `DASH_USER` or `DASH_TOKEN` is unset or empty.
+///
+/// # Arguments
+///
+/// * `http` - The HTTP client to configure. Mutated in place.
 pub fn setup_deploy_naut_env(http: &mut dyn HttpClient) -> Result<(String, String, String), Error> {
     let endpoint = std::env::var("NAUT_ENDPOINT")
         .ok()
@@ -168,12 +231,18 @@ pub fn do_fetch(opts: &Options, http: &mut dyn HttpClient) -> Result<ApiResponse
     })
 }
 
-/// Optional overrides for `create_deployment_with` — used by `do_deploy_package`.
+/// Optional overrides for `do_create_deployment` — used by `do_deploy_package`
+/// to inject a synthesised ref/title/summary without going through the CLI.
 #[derive(Default, Clone)]
 pub struct DeploymentOverrides {
+    /// Overrides the Git reference.
     pub ref_: Option<String>,
+    /// Overrides the ref type (typically `"package"` when set from
+    /// `do_deploy_package`).
     pub ref_type: Option<String>,
+    /// Overrides the deployment title.
     pub title: Option<String>,
+    /// Overrides the deployment summary.
     pub summary: Option<String>,
 }
 
@@ -312,7 +381,26 @@ pub fn do_git_fetch(opts: &Options, http: &mut dyn HttpClient) -> Result<ApiResp
     })
 }
 
-/// `deploy:naut getDeployments`.
+/// `deploy:naut getDeployments` - list recent deployments, optionally filtered by commit.
+///
+/// Calls `GET project/{stack}/environment/{environment}/deploys` with a
+/// `datestarted_from_unix` query parameter derived from `startDate`
+/// (defaulting to `"-1 year"`). If `--commit` is supplied, results are
+/// filtered to those whose `sha` (or `short_sha` for 7-char inputs) matches
+/// and whose `state` is one of: `New`, `Submitted`, `Approved`, `Queued`,
+/// `Deploying`, `Completed`. The final list is sorted by `id` descending
+/// (newest first).
+///
+/// # Arguments
+///
+/// * `opts` - The parsed CLI options bag. Reads `stack`, `environment`,
+///   `startDate` (optional), `commit` (optional).
+/// * `http` - The configured HTTP client.
+///
+/// # Errors
+///
+/// * [`Error::MissingOption`] - `stack` or `environment` is missing.
+/// * [`Error::HttpStatus`] - the server returned a non-200 status.
 pub fn do_get_deployments(opts: &Options, http: &mut dyn HttpClient) -> Result<ApiResponse, Error> {
     let stack = opts
         .option("stack")
@@ -373,7 +461,16 @@ pub fn do_get_deployments(opts: &Options, http: &mut dyn HttpClient) -> Result<A
     })
 }
 
-/// `deploy:naut lastDeployment`.
+/// `deploy:naut lastDeployment` - return the most recent deployment.
+///
+/// Thin wrapper around [`do_get_deployments`] that returns the first
+/// (highest-id) record. If no deployments match, returns `ApiResponse` with
+/// `body: null`.
+///
+/// # Arguments
+///
+/// * `opts` - The parsed CLI options bag.
+/// * `http` - The configured HTTP client.
 pub fn do_last_deployment(opts: &Options, http: &mut dyn HttpClient) -> Result<ApiResponse, Error> {
     let mut response = do_get_deployments(opts, http)?;
     let first = response
@@ -386,7 +483,27 @@ pub fn do_last_deployment(opts: &Options, http: &mut dyn HttpClient) -> Result<A
     Ok(response)
 }
 
-/// `deploy:naut checkDeploymentProgress`.
+/// `deploy:naut checkDeploymentProgress` - poll a single deployment to completion.
+///
+/// Reads `deploy_id` from the options bag and polls the deployment endpoint
+/// every 5 seconds until the `state` field equals `"Completed"`, or until
+/// the 30-minute deadline (`DEPLOY_TIMEOUT_SECS`) expires. Renders a
+/// progress UI on a TTY or stderr lines on a non-TTY (see
+/// [`crate::tui::run_with_progress`]).
+///
+/// Returns an `ApiResponse::ok` envelope on completion.
+///
+/// # Arguments
+///
+/// * `opts` - The parsed CLI options bag. Reads `stack`, `environment`,
+///   `deploy_id`.
+/// * `http` - The configured HTTP client.
+///
+/// # Errors
+///
+/// * [`Error::MissingOption`] - `stack`, `environment`, or `deploy_id` missing.
+/// * [`Error::Generic`] - `deploy_id` is not a valid integer.
+/// * [`Error::Timeout`] - the deadline elapsed before the deployment completed.
 pub fn do_check_deployment_progress(
     opts: &Options,
     http: &mut dyn HttpClient,
@@ -408,6 +525,19 @@ pub fn do_check_deployment_progress(
 }
 
 /// Low-level: GET deployments for a stack/env from a start date.
+///
+/// Shared by [`do_get_deployments`] and [`do_last_deployment`]. Returns the
+/// raw `ApiResponse` from the server without any filtering or sorting -
+/// callers apply those on top.
+///
+/// # Arguments
+///
+/// * `http` - The configured HTTP client.
+/// * `stack` - The DeployNaut project stack.
+/// * `environment` - The DeployNaut environment name.
+/// * `start_date` - Either a Unix epoch, an RFC3339 timestamp, or one of
+///   `"-1 year"`, `"-1 month"`, `"-1 day"`, `"yesterday"`, `"last year"`,
+///   `"last month"`. Anything else falls back to the current time.
 pub fn fetch_deployments(
     http: &mut dyn HttpClient,
     stack: &str,
@@ -434,6 +564,23 @@ pub fn fetch_deployments(
 }
 
 /// Poll a deployment's progress until it reaches the `Completed` state.
+///
+/// Drives the [`crate::tui::run_with_progress`] loop with a 30-minute
+/// deadline. Shared by [`do_create_deployment`] (when `should_wait` is set)
+/// and [`do_check_deployment_progress`].
+///
+/// # Arguments
+///
+/// * `deploy_id` - The numeric DeployNaut deployment id.
+/// * `stack` - The project stack.
+/// * `environment` - The environment name.
+/// * `_io` - Reserved for future logging; currently unused (the spinner
+///   handles its own UI).
+/// * `http` - The configured HTTP client.
+///
+/// # Errors
+///
+/// * [`Error::Timeout`] - the deadline elapsed.
 pub fn check_deployment_progress(
     deploy_id: i64,
     stack: &str,

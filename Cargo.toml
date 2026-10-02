@@ -33,3 +33,19 @@ assert_cmd = "2"
 predicates = "3"
 wiremock = "0.6"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+# Centralised lint policy. Mirrors what CI runs (`cargo clippy -D warnings`).
+# Keeping it in Cargo.toml means `cargo clippy` locally uses the same rules.
+[lints.clippy]
+# We allow these pedantic lints because they produce too much noise on a
+# CLI tool of this size. Each one has been considered; loosening them here
+# keeps the clippy output actionable instead of full of false positives.
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+similar_names = "allow"
+
+# Rust lints: enforce documentation completeness on every public item.
+[lints.rust]
+missing_docs = "warn"

@@ -69,7 +69,7 @@ JSON fixtures in `tests/fixtures/*.json` are unchanged from the PHP repo.
 
 ### Project layout
 
-```
+```text
 src/
   main.rs                      entrypoint + dispatcher
   lib.rs                       public crate surface

@@ -26,7 +26,6 @@ That's the **contract** with the outside world: one JSON line on stdout, an exit
 
 ```rust
 fn main() {
-    // Step 1: try to load .env; failures are ignored (mirrors PHP safeLoad).
     let _ = load_dotenv();
 
     let cli = Cli::parse();
@@ -45,7 +44,7 @@ Every Rust program starts at a function called `main`. It takes no arguments and
 - `let _ = load_dotenv();` — The underscore prefix `_` tells the compiler: "I know this returns a value, but I deliberately don't want to use it." Without that underscore, the compiler would warn you about an unused result. The `Result` returned by `load_dotenv()` is silently discarded because loading `.env` is **best-effort**: if there's no `.env` file, that's fine, we just use real environment variables.
 - `Cli::parse()` — `Cli` is a struct defined in `src/cli.rs`. The `#[derive(Parser)]` attribute from the `clap` crate generates all the argument-parsing code for you at compile time. `parse()` looks at `std::env::args()` (the actual `argv` from the shell) and produces a fully-populated `Cli` struct.
 - `let mut io = StderrIo::new();` — The `mut` keyword means **mutable**. By default, Rust variables are immutable (read-only). `io` needs to be mutable because we'll be calling methods like `set_options` on it that change its internal state.
-- `.expect("reqwest client build")` — `ReqwestHttpClient::new()` returns a `Result`. If it's an `Err`, `expect` will **panic** (crash the program) with the given message. We use it here because if we can't even build an HTTP client, there's no point continuing.
+- `.expect("reqwest client build")` — `ReqwestHttpClient::new()` returns a `Result`. If it's an `Err`, `expect` will **panic** (crash the program) with the given message. We use it here because if we can't even build an HTTP client, there's no point continuing. Azure SDK guidelines discourage `expect`, but a process-level init that can never realistically fail is an acceptable exception.
 - `std::process::exit(exit_code)` — terminates the program immediately with the given exit code. Unix convention: `0` means success, anything else means failure.
 
 ---

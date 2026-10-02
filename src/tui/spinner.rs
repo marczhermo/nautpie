@@ -33,14 +33,26 @@ pub enum PollOutcome {
 pub type PollFn = Box<dyn FnMut(&mut dyn HttpClient) -> Result<PollOutcome, Error>>;
 
 /// Configuration for the runner.
+/// Configuration for one polling run.
 pub struct ProgressRunner {
+    /// Short title shown in the TUI border (e.g. `"gitFetch"`).
     pub title: &'static str,
+    /// Longer description shown in the body (e.g. `"Git fetch for example (#42)"`).
     pub label: String,
+    /// How often to call the polling closure. Defaults to 5 seconds.
     pub poll_interval: Duration,
+    /// How often to redraw the TUI. Defaults to 250 ms (4 fps).
     pub tick_rate: Duration,
 }
 
 impl ProgressRunner {
+    /// Build a `ProgressRunner` with the PHP-parity defaults
+    /// (5 s poll, 250 ms tick).
+    ///
+    /// # Arguments
+    ///
+    /// * `title` - A short identifier shown in the TUI border.
+    /// * `label` - A longer description shown in the body.
     pub fn new(title: &'static str, label: impl Into<String>) -> Self {
         Self {
             title,

@@ -5,8 +5,13 @@ use serde_json::json;
 
 use crate::error::{ApiResponse, Error};
 
+/// The body of the success sample response. Mirrors the PHP original's
+/// prefix-tagged message format.
 #[allow(dead_code)]
 pub const SUCCESS_MESSAGE: &str = "[Action:Success] Response successful.";
+
+/// The body of the failure sample error. Mirrors the PHP original's
+/// prefix-tagged message format.
 #[allow(dead_code)]
 pub const FAIL_MESSAGE: &str = "[Action:Fail] Has failed.";
 

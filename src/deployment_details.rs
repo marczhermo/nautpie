@@ -20,14 +20,26 @@ const DEFAULT_TITLE: &str = "[CI] Deployment";
 /// DeployNaut's `project/{stack}/environment/{env}/deploys` endpoint.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DeploymentDetails {
+    /// Git reference being deployed (commit SHA, branch name, or tag).
+    /// Named `r#ref` in Rust because `ref` is a reserved keyword; serialised
+    /// as `"ref"` in JSON.
     pub r#ref: Option<String>,
+    /// Kind of reference: `"sha"`, `"branch"`, `"package"`, `"redeploy"`, or
+    /// `"promote_from_uat"`.
     pub ref_type: String,
+    /// Human-readable title shown in the DeployNaut dashboard.
     pub title: Option<String>,
+    /// One-line summary, often the source branch name.
     pub summary: Option<String>,
+    /// Skip approval workflow if truthy.
     pub bypass: bool,
+    /// Skip approval **and** start the deployment immediately.
     pub bypass_and_start: bool,
+    /// Optional Unix epoch (seconds) at which to start the deployment.
     pub schedule_start_unix: Option<i64>,
+    /// Optional Unix epoch (seconds) at which the deployment must end.
     pub schedule_end_unix: Option<i64>,
+    /// If truthy, lock the deployment so it cannot be cancelled.
     pub locked: bool,
 }
 
@@ -53,26 +65,31 @@ impl DeploymentDetails {
         }
     }
 
+    /// Set `ref_type` (e.g. `"sha"`, `"branch"`, `"package"`).
     pub fn ref_type(mut self, value: impl Into<String>) -> Self {
         self.ref_type = value.into();
         self
     }
 
+    /// Set the Git reference being deployed.
     pub fn ref_(mut self, value: impl Into<String>) -> Self {
         self.r#ref = Some(value.into());
         self
     }
 
+    /// Set the deployment title shown in the dashboard.
     pub fn title(mut self, value: impl Into<String>) -> Self {
         self.title = Some(value.into());
         self
     }
 
+    /// Set the one-line summary (often the source branch name).
     pub fn summary(mut self, value: impl Into<String>) -> Self {
         self.summary = Some(value.into());
         self
     }
 
+    /// Set `bypass_and_start` (skip approval and start immediately).
     pub fn bypass_and_start(mut self, yes: bool) -> Self {
         self.bypass_and_start = yes;
         self
@@ -87,6 +104,8 @@ impl DeploymentDetails {
         self
     }
 
+    /// Set `schedule_end_unix` by parsing a free-form time string.
+    /// Accepts Unix timestamps or RFC3339.
     pub fn schedule_end(mut self, time_str: impl AsRef<str>) -> Self {
         let raw = time_str.as_ref();
         self.schedule_end_unix = parse_unix(raw);
@@ -103,12 +122,15 @@ impl DeploymentDetails {
         self
     }
 
+    /// Mark this deployment as a UAT promotion. Clears `ref` and sets
+    /// `ref_type` to `"promote_from_uat"`.
     pub fn promote_from_uat(mut self) -> Self {
         self.r#ref = Some(String::new());
         self.ref_type = "promote_from_uat".into();
         self
     }
 
+    /// Lock the deployment so it cannot be cancelled.
     pub fn locked(mut self, yes: bool) -> Self {
         self.locked = yes;
         self
