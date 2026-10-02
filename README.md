@@ -166,6 +166,52 @@ Status `0` means success; non-zero indicates a failed action.
 
 A `.env` file in the current working directory is loaded automatically.
 
+## Building the learning book (PDF)
+
+The repository ships a guided tour of the codebase organised by Rust concept rather than by file. `index.md` is the table of contents; every chapter links to beginner-friendly markdown files alongside the source (`src/*.md`, `tests/*.md`, `examples/README.md`).
+
+You can read those markdown files directly on GitHub, or render them into a single book-style PDF (~131 pages, ~4 MB) with:
+
+```sh
+# One-time dependency (Python 3.10+)
+pip install markdown Pygments
+
+# Build the PDF (uses headless Chrome for rendering)
+python3 scripts/build_pdf.py
+```
+
+The script:
+
+1. Reads `index.md` and walks every `.md` file it references.
+2. Concatenates them into one styled HTML document with chapter tags, table of contents, and Pygments syntax highlighting.
+3. Renders the final PDF via `google-chrome --headless --print-to-pdf`.
+
+Output:
+
+- `nautpie-learning-book.pdf` — the final book (book-style A4 with running chapter headers and `page N of M` footers).
+- `build/nautpie-learning-book.html` — the intermediate HTML if you want to inspect or re-style the output.
+
+### Requirements
+
+| Tool | Used for |
+|---|---|
+| Python 3.10+ | Running `scripts/build_pdf.py`. |
+| `markdown` (PyPI) | Converting `.md` files to HTML. |
+| `Pygments` (PyPI) | Syntax highlighting Rust, TOML, JSON, etc. in code blocks. |
+| `google-chrome` (or any recent Chromium) | Rendering HTML to PDF via `--print-to-pdf`. |
+
+Any modern Chromium with `--headless=new --print-to-pdf` support will work as a substitute for `google-chrome`.
+
+### Editing the book
+
+The book is just rendered markdown. To change what appears:
+
+- **Reorder or add chapters** — edit `index.md`. The PDF reflects whatever `index.md` references.
+- **Change the look** — edit the `CSS` block in `scripts/build_pdf.py`. It's a single string at the top of the file.
+- **Add or change a chapter's content** — edit the corresponding `src/*.md` (or `tests/*.md`, etc.) and re-run the script.
+
+The script does no caching, so a fresh run always reflects the current state of the markdown files.
+
 ## License
 
 MIT. See `LICENSE.txt`.
